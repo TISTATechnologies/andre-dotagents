@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merge Preparation"
+  short_description: "Consolidate a branch for merge"
+  default_prompt: "Use $merge-prep to consolidate this branch into clean commits and draft a pull request description."

@@ -1,0 +1,6 @@
+.git
+.github
+.markdownlint-repo
+.markdownlint-rules
+node_modules
+tmp

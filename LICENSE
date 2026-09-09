@@ -1,0 +1,54 @@
+dotagents - License
+
+Copyright (c) 2026 G. Andre Vaillancourt
+
+This repository uses separate licenses for software/tooling and skill/documentation
+content.
+
+Software and Tooling
+--------------------
+
+Except where a file states otherwise, scripts, just recipes, CI helpers, linter
+configuration, and other executable tooling in this repository are licensed
+under the MIT License.
+
+Skill and Documentation Content
+-------------------------------
+
+Except where a file states otherwise, the Markdown skill definitions under
+skills/, their supporting reference files and agent manifests, and the project
+documentation in this repository are licensed under the Creative Commons
+Attribution 4.0 International Public License (CC BY 4.0).
+
+Attribution example:
+
+  "dotagents" (c) 2026 G. Andre Vaillancourt, used under CC BY 4.0.
+  To view the license, visit https://creativecommons.org/licenses/by/4.0/
+
+MIT License Text
+----------------
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of the software and associated documentation files covered by the MIT License
+(the "Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom
+the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Creative Commons License Text
+-----------------------------
+
+The full CC BY 4.0 legal code is available at:
+
+  https://creativecommons.org/licenses/by/4.0/legalcode

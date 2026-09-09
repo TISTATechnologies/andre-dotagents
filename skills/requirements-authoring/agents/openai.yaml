@@ -1,0 +1,4 @@
+interface:
+  display_name: "Requirements Authoring"
+  short_description: "Author atomic, traceable requirements"
+  default_prompt: "Use $requirements-authoring to create or revise project-compliant requirements."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Feedback"
+  short_description: "Work through another agent's feedback"
+  default_prompt: "Use $agent-feedback to consider and fully address the feedback below, which was produced by another agent."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go Developer"
+  short_description: "Write idiomatic, type-safe Go"
+  default_prompt: "Use $go-developer to write or refactor this Go code to current idiomatic standards."

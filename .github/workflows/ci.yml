@@ -1,0 +1,50 @@
+# Paired with .gitlab-ci.yml - keep the two in sync when either changes
+# (checks run, tool versions, trigger scope).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  skills:
+    name: Validate skills and links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Validate skill definitions
+        run: python3 .ci_scripts/validate_skills.py skills
+      - name: Validate documentation links
+        run: python3 .ci_scripts/validate_doc_links.py .
+      - name: Run CI script unit tests
+        run: cd .ci_scripts && python3 -m unittest discover -p 'test_*.py'
+
+  docs:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install markdownlint-cli2
+        run: npm install -g markdownlint-cli2
+      - name: Install custom markdownlint rules
+        run: |
+          git clone --depth 1 https://github.com/cypher0n3/docs-as-code-tools.git .markdownlint-repo
+          ln -sfn .markdownlint-repo/markdownlint-rules .markdownlint-rules
+      - name: Lint Markdown
+        run: markdownlint-cli2 '**/*.md'
+
+  shell:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: shellcheck scripts/*.sh claude/*.sh

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Senior Go Reviewer"
+  short_description: "Adversarially review Go code"
+  default_prompt: "Use $senior-go-dev-reviewer to perform an adversarial senior review of this Go change."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grill Me"
+  short_description: "Question me until we agree"
+  default_prompt: "Use $grill-me to question me one at a time until we have a shared understanding."

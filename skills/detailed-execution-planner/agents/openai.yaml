@@ -1,0 +1,4 @@
+interface:
+  display_name: "Detailed Execution Planner"
+  short_description: "Write test-gated execution plans"
+  default_prompt: "Use $detailed-execution-planner to build a detailed, test-gated execution plan for this work."

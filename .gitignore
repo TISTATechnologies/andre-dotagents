@@ -1,0 +1,28 @@
+# Directories
+__pycache__/
+.cache/
+.claude/
+.codex/
+.cursor/
+.markdownlint-repo/
+.markdownlint-rules
+.markdownlint-rules/
+.pytest_cache/
+.tmp/
+.venv/
+.vscode/
+node_modules/
+output/
+temp/
+tmp/
+wip/
+
+# File Patterns
+*.backup*
+*.bak
+*.log
+*.out
+
+# Local environment
+.env*
+!.env.example

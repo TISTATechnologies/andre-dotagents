@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lossless Spec Promotion"
+  short_description: "Promote draft specs without losing detail"
+  default_prompt: "Use $promote-specs-losslessly to integrate these draft specs into canonical requirements and technical specifications without losing detail."

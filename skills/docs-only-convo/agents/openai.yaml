@@ -1,0 +1,4 @@
+interface:
+  display_name: "Docs Only Conversation"
+  short_description: "Restrict this thread to documentation"
+  default_prompt: "Use $docs-only-convo to restrict this conversation to documentation changes only."

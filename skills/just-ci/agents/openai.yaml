@@ -1,0 +1,4 @@
+interface:
+  display_name: "Just CI Gate"
+  short_description: "Require the full CI recipe to pass"
+  default_prompt: "Use $just-ci to require the project's full CI recipe to pass before this work is complete."

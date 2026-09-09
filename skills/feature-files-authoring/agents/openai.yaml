@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Files Authoring"
+  short_description: "Author traceable BDD feature files"
+  default_prompt: "Use $feature-files-authoring to create or revise a project-compliant BDD feature file."

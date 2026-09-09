@@ -1,0 +1,102 @@
+---
+# markdownlint configuration: default built-in rules plus custom rule overrides.
+#
+# AI Agents: You are NOT ALLOWED to modify this file.
+#
+# Custom rules come from https://github.com/cypher0n3/docs-as-code-tools and are
+# installed into .markdownlint-rules/ by `just install-markdownlint`.
+
+default: true
+
+# MD013/line-length - one sentence per line makes hard wrapping counterproductive.
+MD013:
+  line_length: 500
+  heading_line_length: 500
+  code_block_line_length: 500
+  code_blocks: true
+  tables: true
+  headings: true
+  strict: false
+  stern: false
+
+# MD004/ul-style - dashes only, never asterisks.
+MD004:
+  style: dash
+
+# MD046/code-block-style - fenced code blocks only.
+MD046:
+  style: fenced
+
+# MD060/table-column-style - table alignment is fixed by formatters, not by hand.
+MD060: false
+
+# -----------------------------------------------------------------------------
+# ascii-only (custom)
+# -----------------------------------------------------------------------------
+# Skill files are prompt content and may carry the emphasis characters agents
+# respond to, so they get the allowlist. The README may use badge and highlight
+# emoji freely.
+ascii-only:
+  anyUnicodePathPatterns:
+    - "README.md"
+  unicodeAllowlistPathPatterns:
+    - "skills/**"
+    - "docs/dev_docs/**"
+  unicodeAllowlist:
+    - "OK"
+    - "NO"
+    - "WARN"
+    - "..."
+
+# -----------------------------------------------------------------------------
+# document-length (custom)
+# -----------------------------------------------------------------------------
+# A skill that cannot be read in one sitting should be split into a SKILL.md
+# plus reference files.
+document-length:
+  maximum: 1500
+  excludePathPatterns:
+    - "docs/dev_docs/**"
+
+# -----------------------------------------------------------------------------
+# no-h1-content (custom)
+# -----------------------------------------------------------------------------
+# Repository documentation puts only badges or a table of contents between the
+# H1 and the first H2. A SKILL.md body legitimately starts right under its H1.
+no-h1-content:
+  excludePathPatterns:
+    - "skills/**"
+
+# -----------------------------------------------------------------------------
+# no-empty-heading (custom)
+# -----------------------------------------------------------------------------
+# Skill files use bare grouping headings to structure long prompts, so they are
+# exempt; repository documentation must put content under every heading.
+no-empty-heading:
+  excludePathPatterns:
+    - "skills/**"
+
+# -----------------------------------------------------------------------------
+# no-heading-like-lines (custom)
+# -----------------------------------------------------------------------------
+# Bold pseudo-headings become real headings in documentation. Skill files use
+# bold labels deliberately as inline emphasis for agents.
+no-heading-like-lines:
+  convertToHeading: true
+  excludePathPatterns:
+    - "skills/**"
+
+# -----------------------------------------------------------------------------
+# no-tables (custom)
+# -----------------------------------------------------------------------------
+# Lists survive diffs and agent edits better than pipe tables.
+no-tables:
+  convert-to: list
+
+# -----------------------------------------------------------------------------
+# one-sentence-per-line (custom)
+# -----------------------------------------------------------------------------
+# Every Markdown file in this repository, skills included, keeps one sentence
+# per line so diffs stay readable and agent edits stay surgical.
+one-sentence-per-line:
+  checkCrossLine: true

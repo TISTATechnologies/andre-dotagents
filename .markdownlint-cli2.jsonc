@@ -1,0 +1,34 @@
+// AI Agents: You are NOT ALLOWED to modify this file.
+{
+  "config": {
+    "default": true,
+    "extends": ".markdownlint.yml"
+  },
+  "customRules": [
+    ".markdownlint-rules/ascii-only.js",
+    ".markdownlint-rules/document-length.js",
+    ".markdownlint-rules/heading-title-case.js",
+    ".markdownlint-rules/no-duplicate-headings-normalized.js",
+    ".markdownlint-rules/no-empty-heading.js",
+    ".markdownlint-rules/no-h1-content.js",
+    ".markdownlint-rules/no-heading-like-lines.js",
+    ".markdownlint-rules/no-tables.js",
+    ".markdownlint-rules/one-sentence-per-line.js"
+  ],
+  "ignores": [
+    ".git/**",
+    ".github/**",
+    ".markdownlint-repo/**",
+    ".markdownlint-rules/**",
+    ".venv/**",
+    "**/.venv/**",
+    "**/node_modules/**",
+    "**/output/**",
+    "**/tmp/**",
+    "**/wip/**",
+    "node_modules/**",
+    "output/**",
+    "tmp/**",
+    "wip/**"
+  ]
+}

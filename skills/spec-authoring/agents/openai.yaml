@@ -1,0 +1,4 @@
+interface:
+  display_name: "Specification Authoring"
+  short_description: "Author precise technical specifications"
+  default_prompt: "Use $spec-authoring to create or revise a project-compliant technical specification."

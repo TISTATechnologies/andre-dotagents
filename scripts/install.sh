@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+# Link this repository's skills into the agent tools that read them.
+#
+# It also links the global AGENTS.md into the tools that document a global
+# instruction file of their own, installs the Claude Code status line script
+# and points Claude's settings at it, and turns off agent commit and PR
+# attribution in every tool that supports the setting. The last two steps can
+# be skipped with --no-statusline and --no-attribution.
+#
+# Two link styles are needed for the skills because the tools disagree about
+# what a skills directory is:
+#   - directory targets get one symlink pointing at skills/ as a whole.
+#   - per-skill targets get one symlink per skill directory inside their own
+#     skills directory, so tool-managed siblings are left in place.
+#
+# Existing paths are never replaced unless --force is given, and a symlink that
+# already points at the right place is reported as already installed.
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+skills_dir="${repo_root}/skills"
+agents_file="${repo_root}/AGENTS.md"
+statusline_source="${repo_root}/claude/statusline-command.sh"
+statusline_link="${HOME}/.claude/statusline-command.sh"
+claude_settings="${HOME}/.claude/settings.json"
+statusline_command="sh ~/.claude/statusline-command.sh"
+
+dry_run=0
+force=0
+no_statusline=0
+no_attribution=0
+
+# Targets that receive a single symlink to the whole skills/ directory.
+directory_targets=(
+    "${HOME}/.claude/skills"
+    "${HOME}/.cursor/skills"
+    "${HOME}/.gemini/config/skills"
+)
+
+# Targets that receive one symlink per skill directory.
+per_skill_targets=(
+    "${HOME}/.codex/skills"
+    "${HOME}/.grok/skills"
+)
+
+# Targets that receive a symlink to the global AGENTS.md instruction file.
+# Each entry is the path that tool reads for user-level instructions. The Gemini
+# entry uses that tool's own filename, which is what it reads by default.
+instruction_targets=(
+    "${HOME}/.claude/AGENTS.md"
+    "${HOME}/.codex/AGENTS.md"
+    "${HOME}/.cursor/rules/AGENTS.md"
+    "${HOME}/.gemini/GEMINI.md"
+    "${HOME}/.grok/AGENTS.md"
+)
+
+usage() {
+    cat <<'USAGE'
+Usage: install.sh [--dry-run] [--force] [--no-statusline]
+                  [--no-attribution] [--help]
+
+  --dry-run         Print the changes that would be made and change nothing.
+  --force           Replace an existing symlink that points somewhere else.
+  --no-statusline   Skip installing and configuring the Claude Code status line.
+  --no-attribution  Skip turning off agent commit and PR attribution.
+  --help            Show this message.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dry-run) dry_run=1 ;;
+        --force) force=1 ;;
+        --no-statusline) no_statusline=1 ;;
+        --no-attribution) no_attribution=1 ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "error: unknown argument '$1'" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+run() {
+    if [ "$dry_run" -eq 1 ]; then
+        echo "  would run: $*"
+    else
+        "$@"
+    fi
+}
+
+# link_one <source> <link_path>
+link_one() {
+    local source="$1" link_path="$2" existing
+
+    if [ "$(readlink -f "$link_path" 2>/dev/null || true)" = "$(readlink -f "$source")" ]; then
+        echo "  ok: ${link_path} (already linked)"
+        return 0
+    fi
+
+    if [ -e "$link_path" ] || [ -L "$link_path" ]; then
+        if [ ! -L "$link_path" ]; then
+            echo "  skip: ${link_path} exists and is not a symlink" >&2
+            return 0
+        fi
+        existing="$(readlink "$link_path")"
+        if [ "$force" -eq 0 ]; then
+            echo "  skip: ${link_path} points at ${existing} (use --force to replace)" >&2
+            return 0
+        fi
+        run rm -f "$link_path"
+    fi
+
+    [ -d "$(dirname "$link_path")" ] || run mkdir -p "$(dirname "$link_path")"
+    run ln -sfn "$source" "$link_path"
+    if [ "$dry_run" -eq 0 ]; then
+        echo "  linked: ${link_path} -> ${source}"
+    fi
+}
+
+echo "Source: ${skills_dir}"
+
+echo "Directory targets:"
+for target in "${directory_targets[@]}"; do
+    link_one "$skills_dir" "$target"
+done
+
+echo "Per-skill targets:"
+for target in "${per_skill_targets[@]}"; do
+    [ -d "$target" ] || run mkdir -p "$target"
+    for skill_path in "$skills_dir"/*/; do
+        skill_name="$(basename "$skill_path")"
+        link_one "${skills_dir}/${skill_name}" "${target}/${skill_name}"
+    done
+done
+
+echo "Global instruction file:"
+for target in "${instruction_targets[@]}"; do
+    link_one "$agents_file" "$target"
+done
+
+if [ "$no_statusline" -eq 1 ]; then
+    echo "Status line: skipped (--no-statusline)."
+else
+    echo "Status line:"
+    link_one "$statusline_source" "$statusline_link"
+    python3 -c '
+import json
+import shutil
+import sys
+
+path, command, dry_run = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+desired = {"type": "command", "command": command}
+
+try:
+    with open(path, encoding="utf-8") as handle:
+        settings = json.load(handle)
+except FileNotFoundError:
+    settings = {}
+except (OSError, ValueError) as error:
+    print("  skip: cannot read %s (%s)" % (path, error))
+    sys.exit(0)
+
+if settings.get("statusLine") == desired:
+    print("  ok: %s already points at the status line script" % path)
+    sys.exit(0)
+
+if dry_run:
+    print("  would set statusLine in %s to: %s" % (path, command))
+    sys.exit(0)
+
+if settings:
+    shutil.copy2(path, path + ".bak")
+    print("  backed up: %s.bak" % path)
+settings["statusLine"] = desired
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(settings, handle, indent=2)
+    handle.write("\n")
+print("  configured: statusLine in %s" % path)
+' "$claude_settings" "$statusline_command" "$dry_run"
+fi
+
+if [ "$no_attribution" -eq 1 ]; then
+    echo "Commit attribution: skipped (--no-attribution)."
+else
+    echo "Commit attribution:"
+    python3 - "$dry_run" <<'ATTRIBUTION_PY'
+import json
+import shutil
+import sys
+import tomllib
+from pathlib import Path
+
+dry_run = sys.argv[1] == "1"
+home = Path.home()
+
+
+def say(message):
+    print("  " + message)
+
+
+def backup(path):
+    shutil.copy2(path, str(path) + ".bak")
+    say("backed up: %s.bak" % path)
+
+
+def merge(target, updates):
+    """Recursively apply updates to target, returning True when it changed."""
+    changed = False
+    for key, value in updates.items():
+        if isinstance(value, dict):
+            branch = target.get(key)
+            if not isinstance(branch, dict):
+                branch = {}
+                target[key] = branch
+            changed = merge(branch, value) or changed
+        elif target.get(key) != value:
+            target[key] = value
+            changed = True
+    return changed
+
+
+def configure_json(path, updates, label):
+    if not path.parent.is_dir():
+        say("skip: %s is not installed" % label)
+        return
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (OSError, ValueError) as error:
+        say("skip: cannot read %s (%s)" % (path, error))
+        return
+    if not isinstance(settings, dict):
+        say("skip: %s is not a JSON object" % path)
+        return
+
+    probe = json.loads(json.dumps(settings))
+    if not merge(probe, updates):
+        say("ok: %s already disables attribution" % label)
+        return
+    if dry_run:
+        say("would update: %s" % path)
+        return
+    if path.exists():
+        backup(path)
+    merge(settings, updates)
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    say("configured: %s" % path)
+
+
+def configure_codex_toml(path, key, value):
+    """Set a top-level key in config.toml, keeping it above the first table."""
+    if not path.parent.is_dir():
+        say("skip: codex is not installed")
+        return
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    try:
+        if tomllib.loads(text).get(key) == value:
+            say("ok: codex already disables attribution")
+            return
+    except tomllib.TOMLDecodeError as error:
+        say("skip: cannot parse %s (%s)" % (path, error))
+        return
+    if dry_run:
+        say("would set %s = \"%s\" in %s" % (key, value, path))
+        return
+
+    lines = text.splitlines()
+    assignment = '%s = "%s"' % (key, value)
+    for index, line in enumerate(lines):
+        stripped = line.lstrip()
+        if stripped.startswith("["):
+            lines.insert(index, assignment)
+            break
+        if stripped.split("=")[0].strip() == key:
+            lines[index] = assignment
+            break
+    else:
+        lines.append(assignment)
+
+    updated = "\n".join(lines) + "\n"
+    try:
+        if tomllib.loads(updated).get(key) != value:
+            raise tomllib.TOMLDecodeError("key did not take effect", updated, 0)
+    except tomllib.TOMLDecodeError as error:
+        say("skip: edit would corrupt %s (%s); left unchanged" % (path, error))
+        return
+    if path.exists():
+        backup(path)
+    path.write_text(updated, encoding="utf-8")
+    say("configured: %s" % path)
+
+
+configure_json(
+    home / ".claude" / "settings.json",
+    {"attribution": {"commit": "", "pr": ""}},
+    "claude",
+)
+configure_codex_toml(home / ".codex" / "config.toml", "commit_attribution", "")
+configure_json(
+    home / ".cursor" / "cli-config.json",
+    {"attribution": {"attributeCommitsToAgent": False, "attributePRsToAgent": False}},
+    "cursor",
+)
+say("note: gemini and grok document no attribution setting; nothing to change")
+ATTRIBUTION_PY
+fi
+
+if [ "$dry_run" -eq 1 ]; then
+    echo "Dry run: nothing was changed."
+fi

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tech Specs Update"
+  short_description: "Keep specs in sync with the change"
+  default_prompt: "Use $tech-specs-update to bring the related technical specifications and requirements in sync with this change."

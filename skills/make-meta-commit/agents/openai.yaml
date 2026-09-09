@@ -1,0 +1,4 @@
+interface:
+  display_name: "Make Meta Commit"
+  short_description: "Commit submodules then superproject"
+  default_prompt: "Use $make-meta-commit to commit the submodules and then the parent repository."

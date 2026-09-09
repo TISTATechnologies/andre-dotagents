@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python Test Automation"
+  short_description: "Write functional and E2E Python tests"
+  default_prompt: "Use $python-test-automation to write or refactor these Python functional or end-to-end tests."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Senior Developer Standards"
+  short_description: "Hold code to senior standards"
+  default_prompt: "Use $senior-developer to implement this change against senior developer coding standards."

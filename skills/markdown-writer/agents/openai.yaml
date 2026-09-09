@@ -1,0 +1,4 @@
+interface:
+  display_name: "Markdown Writer"
+  short_description: "Write repo-compliant Markdown"
+  default_prompt: "Use $markdown-writer to write or fix this Markdown against the repository's own standards and lint config."
