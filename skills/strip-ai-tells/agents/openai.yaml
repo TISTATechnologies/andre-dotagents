@@ -1,0 +1,4 @@
+interface:
+  display_name: "Strip AI Tells"
+  short_description: "Make prose read as human-written"
+  default_prompt: "Use $strip-ai-tells to rewrite the AI-sounding prose in this document until a full pass finds nothing."

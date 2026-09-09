@@ -19,7 +19,7 @@ Notes explaining why a skill works the way it does are kept out of `SKILL.md`, b
 
 ## Documentation and Specification Authoring
 
-These skills carry the documentation, specification, and requirements conventions I use across my projects.
+These skills carry the documentation, specification, and requirements conventions I use across my projects, along with the prose standards I hold a draft to.
 
 - [`markdown-writer`](markdown-writer/SKILL.md) - Applies project documentation standards and markdownlint rules when writing or editing Markdown.
 - [`spec-authoring`](spec-authoring/SKILL.md) - Applies repository-specific technical-specification standards to design and specification documents.
@@ -28,6 +28,7 @@ These skills carry the documentation, specification, and requirements convention
 - [`promote-specs-losslessly`](promote-specs-losslessly/SKILL.md) - Preserves every material detail when promoting drafts, design notes, or plans into canonical requirements and specifications.
 - [`tech-specs-update`](tech-specs-update/SKILL.md) *(user-invoked only)* - Update the related tech specs and requirements as part of planned work.
 - [`docs-only-convo`](docs-only-convo/SKILL.md) *(user-invoked only)* - Mark the current thread as only intended for updating documentation.
+- [`strip-ai-tells`](strip-ai-tells/SKILL.md) - Rewrites AI-sounding prose until it reads as human-written.
 
 ## Software Development
 
