@@ -1,8 +1,8 @@
 ---
 name: docs-only-convo
-description: Mark the current thread as only intended for updating documentation.
+description: Mark the current thread as only intended for updating documentation. Invoke only when explicitly called by user.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 # Docs Only Convo
 

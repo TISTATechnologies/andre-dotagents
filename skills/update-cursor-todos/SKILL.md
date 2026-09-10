@@ -1,8 +1,8 @@
 ---
 name: update-cursor-todos
-description: Update Cursor plan and agent todo items.
+description: Update Cursor plan and agent todo items. Invoke only when explicitly called by user.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 # Update Todos
 

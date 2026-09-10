@@ -1,8 +1,8 @@
 ---
 name: merge-prep
-description: Prepare for merge by cleaning up and consolidating commits.
+description: Prepare for merge by cleaning up and consolidating commits. Invoke only when explicitly called by user.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 # Merge Preparation
 

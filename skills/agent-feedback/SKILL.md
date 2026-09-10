@@ -1,8 +1,8 @@
 ---
 name: agent-feedback
-description: Quick prompt to indicate that the provided info was produced by another agent for consideration.
+description: Quick prompt to indicate that the provided info was produced by another agent for consideration. Invoke only when explicitly called by user.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 # Agent Feedback
 

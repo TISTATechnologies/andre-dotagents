@@ -1,8 +1,8 @@
 ---
 name: tech-specs-update
-description: Update the related tech specs and requirements as part of planned work.
+description: Update the related tech specs and requirements as part of planned work. Invoke only when explicitly called by user.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 # Update Tech Specs
 

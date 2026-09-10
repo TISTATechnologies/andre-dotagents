@@ -2,7 +2,7 @@
 name: detailed-execution-planner
 description: Creates and updates detailed execution plans as markdown checklists. Use when the user asks to create, refine, expand, or update a plan. Invoke only when explicitly called by user. Intended only for Cursor (*.plan.md) or CAI plans.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 # Detailed Execution Planner
 
