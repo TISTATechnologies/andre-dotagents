@@ -14,6 +14,7 @@ check:skills:
   image: python:3.13-slim
   script:
     - python3 .ci_scripts/validate_skills.py skills
+    - python3 .ci_scripts/validate_agents.py agents skills
     - python3 .ci_scripts/validate_doc_links.py .
     - cd .ci_scripts && python3 -m unittest discover -p 'test_*.py'
 

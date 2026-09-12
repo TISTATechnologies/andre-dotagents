@@ -2,7 +2,7 @@
 
 ## Overview
 
-Contributions are welcome, including bug reports, factual corrections, portability fixes, and new skills.
+Contributions are welcome, including bug reports, factual corrections, portability fixes, new skills, and new agents.
 This is a personal, opinionated collection, so read [Scope and Point of View](README.md#scope-and-point-of-view) first to understand the assumptions the skills carry.
 
 ## What is Most Useful
@@ -30,6 +30,12 @@ Before opening a request that adds a skill:
 - Say where you actually used the skill and what it changed about the outcome.
 - Confirm that it does not duplicate an existing skill, or explain why the overlap is worth having.
 
+## New Agents
+
+An agent under `agents/` is held to the same vetting as a skill, and to one more test: it must preload existing skills rather than restate them.
+If the rule you want the agent to follow is not in a skill, add or extend the skill first and have the agent preload it, so the rule is written once and every tool that reads the skill sees it.
+Read [Agent Authoring Standards](docs/docs_standards/agent_authoring.md) before opening the request, and say which model you chose and why.
+
 ## Before Opening a Request
 
 Run the full local gate and make sure it passes:
@@ -39,7 +45,7 @@ just setup
 just ci
 ```
 
-That runs Markdown lint, internal link validation, skill frontmatter and manifest validation, the offline unit tests, and shell lint.
+That runs Markdown lint, internal link validation, skill frontmatter and manifest validation, agent frontmatter and index validation, the offline unit tests, and shell lint.
 See [`.ci_scripts/README.md`](.ci_scripts/README.md) for what each validator checks.
 
 Do not modify [`.markdownlint.yml`](.markdownlint.yml) or [`.markdownlint-cli2.jsonc`](.markdownlint-cli2.jsonc), and do not add lint suppressions, to make a check pass.
@@ -55,7 +61,7 @@ Include the agent tool and version when the behavior is tool-specific, because t
 This repository uses a split license, and [LICENSE](LICENSE) is the authoritative statement of it.
 
 - Scripts, just recipes, CI helpers, and linter configuration are licensed under the **MIT License**.
-- The skill definitions under `skills/`, their reference files and agent manifests, and the project documentation are licensed under the **Creative Commons Attribution 4.0 International Public License (CC BY 4.0)**.
+- The skill definitions under `skills/`, their reference files and agent manifests, the agent definitions under `agents/`, and the project documentation are licensed under the **Creative Commons Attribution 4.0 International Public License (CC BY 4.0)**.
 
 Skill files carry no per-file license notice, because everything in a `SKILL.md` is loaded into the model's context on every invocation and a notice there would cost context without doing any work.
 The license travels with the repository, not with the individual file, so anyone copying a skill out is responsible for carrying the attribution with it.

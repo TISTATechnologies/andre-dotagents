@@ -16,9 +16,10 @@ Skill and Documentation Content
 -------------------------------
 
 Except where a file states otherwise, the Markdown skill definitions under
-skills/, their supporting reference files and agent manifests, and the project
-documentation in this repository are licensed under the Creative Commons
-Attribution 4.0 International Public License (CC BY 4.0).
+skills/, their supporting reference files and agent manifests, the Markdown
+agent definitions under agents/, and the project documentation in this
+repository are licensed under the Creative Commons Attribution 4.0
+International Public License (CC BY 4.0).
 
 Attribution example:
 

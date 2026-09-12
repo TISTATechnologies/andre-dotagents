@@ -2,6 +2,7 @@
 
 [![License: MIT + CC BY 4.0](https://img.shields.io/badge/License-MIT%20%2B%20CC%20BY%204.0-blue.svg)](LICENSE)
 [![Skills](https://img.shields.io/badge/skills-19-blueviolet)](skills/README.md)
+[![Agents](https://img.shields.io/badge/agents-6-blueviolet)](agents/README.md)
 [![Docs](https://img.shields.io/badge/docs-standards-informational)](docs/docs_standards/README.md)
 
 ## Overview
@@ -9,6 +10,7 @@
 These are my agent skills and instructions, kept in one place and shared across every agent tool I use.
 One directory under [`skills/`](skills/README.md) is one skill.
 Claude Code, Codex, Cursor, Gemini, and Grok all read that same directory through symlinks, so I edit a skill once and it takes effect everywhere the next time a session starts.
+One file under [`agents/`](agents/README.md) is one Claude Code subagent that preloads the skills its role needs, linked into `~/.claude/agents` the same way.
 
 They are personal and opinionated; see [Scope and Point of View](#scope-and-point-of-view) before adopting them wholesale.
 
@@ -32,8 +34,9 @@ Where a skill can discover a convention from the repository it is running in, I 
 ## Highlights
 
 - 🧩 **One source of truth**: every agent tool reads the same `skills/` directory through symlinks; there are no per-tool copies to drift.
+- 🤖 **Agents built on skills**: a coder, reviewer, researcher, planner, spec author, and feature author, each preloading the skills for its role, with a model chosen per role.
 - 🔗 **One-command install**: `just install` creates the links each tool expects, and `just install-dry-run` shows the plan first.
-- ✅ **Validated**: `just ci` checks skill frontmatter, naming, agent manifests, Markdown conventions, and internal links.
+- ✅ **Validated**: `just ci` checks skill frontmatter, naming, agent manifests, agent definitions, Markdown conventions, and internal links.
 - 📐 **Documented conventions**: the frontmatter contract and prose rules live in [docs/docs_standards/](docs/docs_standards/README.md), not in reviewers' heads.
 - 🪶 **No dependencies**: the checks are Python standard library plus `markdownlint-cli2`, so a fresh clone validates immediately.
 
@@ -46,7 +49,7 @@ git clone https://github.com/cypher0n3/dotagents.git ~/.agents
 cd ~/.agents
 just setup            # fetch the custom markdownlint rules
 just install-dry-run  # review the links that would be created, changing nothing
-just install          # link skills and instructions into every agent tool
+just install          # link skills, agents, and instructions into every agent tool
 just ci               # run the full local check suite
 ```
 
@@ -61,9 +64,11 @@ Use `just --list` to see every recipe.
 
 ## Installation Layout
 
-`just install` creates three kinds of link, because the agent tools disagree about what a skills directory is and about where global instructions live.
+`just install` creates four kinds of link, because the agent tools disagree about what a skills directory is and about where global instructions live.
 
 - Whole-directory links, one symlink pointing at `skills/`: `~/.claude/skills`, `~/.cursor/skills`, and `~/.gemini/config/skills`.
+- The agents link, one symlink pointing at `agents/`: `~/.claude/agents`.
+  Only Claude Code reads this file format, so only its directory is linked.
 - Per-skill links, one symlink per skill inside a directory the tool manages itself: `~/.codex/skills` and `~/.grok/skills`.
 - Instruction-file links, one symlink pointing at `AGENTS.md`: `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.cursor/rules/AGENTS.md`, `~/.gemini/GEMINI.md`, and `~/.grok/AGENTS.md`.
   The Gemini link uses that tool's own filename, which is what it reads by default.
@@ -82,8 +87,9 @@ A link that already points here is reported as installed, a link pointing elsewh
 ## Repository Layout
 
 - [skills/](skills/README.md) - the skills themselves, one directory per skill, indexed by category.
+- [agents/](agents/README.md) - the Claude Code subagents, one file per agent, each preloading the skills for its role.
 - [docs/](docs/README.md) - documentation for this repository.
-- [docs/docs_standards/](docs/docs_standards/README.md) - skill authoring and Markdown standards.
+- [docs/docs_standards/](docs/docs_standards/README.md) - skill, agent, and Markdown authoring standards.
 - [.ci_scripts/](.ci_scripts/README.md) - dependency-free validation helpers and their unit tests.
 - [scripts/](scripts/install.sh) - the symlink installer.
 - [claude/](claude/statusline-command.sh) - Claude Code configuration kept in this repository and linked into `~/.claude`.
@@ -102,10 +108,20 @@ The `description` opens with one short line saying what the skill is for, and ad
 Read [Skill Authoring Standards](docs/docs_standards/skill_authoring.md) first, then run `just ci`.
 No new symlink is needed for a whole-directory target; run `just install` again to link a new skill into the per-skill targets.
 
+## Adding an Agent
+
+Create `agents/<agent-name>.md` with `name`, `description`, and `model` frontmatter, list the skills it preloads under `skills`, and write its system prompt under a single H1.
+The `name` must match the filename, every preloaded skill must exist under `skills/`, and the agent must be linked from [agents/README.md](agents/README.md).
+
+Read [Agent Authoring Standards](docs/docs_standards/agent_authoring.md) first, then run `just ci`.
+No new symlink is needed, because `~/.claude/agents` points at the whole directory.
+
 ## Documentation
 
 - [Skill Index](skills/README.md) - every skill, grouped by what it is for.
+- [Agent Index](agents/README.md) - every Claude Code agent, with its model and the skills it preloads.
 - [Skill Authoring Standards](docs/docs_standards/skill_authoring.md) - the rules a skill must follow.
+- [Agent Authoring Standards](docs/docs_standards/agent_authoring.md) - the rules an agent must follow.
 - [Markdown Conventions](docs/docs_standards/markdown_conventions.md) - the prose and lint conventions.
 - [meta.md](meta.md) - orientation for agents, and this repository's boundaries.
 

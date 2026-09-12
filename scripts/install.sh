@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Link this repository's skills into the agent tools that read them.
 #
-# It also links the global AGENTS.md into the tools that document a global
+# It also links agents/ to ~/.claude/agents, the directory Claude Code reads
+# user-level subagent definitions from, and links the global AGENTS.md into the tools that document a global
 # instruction file of their own, installs the Claude Code status line script
 # and points Claude's settings at it, and turns off agent commit and PR
 # attribution in every tool that supports the setting. The last two steps can
@@ -20,6 +21,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 skills_dir="${repo_root}/skills"
+agents_dir="${repo_root}/agents"
 agents_file="${repo_root}/AGENTS.md"
 statusline_source="${repo_root}/claude/statusline-command.sh"
 statusline_link="${HOME}/.claude/statusline-command.sh"
@@ -36,6 +38,12 @@ directory_targets=(
     "${HOME}/.claude/skills"
     "${HOME}/.cursor/skills"
     "${HOME}/.gemini/config/skills"
+)
+
+# Targets that receive a single symlink to the whole agents/ directory. Only
+# Claude Code reads this file format today, so only its directory is linked.
+agent_directory_targets=(
+    "${HOME}/.claude/agents"
 )
 
 # Targets that receive one symlink per skill directory.
@@ -138,6 +146,11 @@ for target in "${per_skill_targets[@]}"; do
         skill_name="$(basename "$skill_path")"
         link_one "${skills_dir}/${skill_name}" "${target}/${skill_name}"
     done
+done
+
+echo "Claude agents:"
+for target in "${agent_directory_targets[@]}"; do
+    link_one "$agents_dir" "$target"
 done
 
 echo "Global instruction file:"

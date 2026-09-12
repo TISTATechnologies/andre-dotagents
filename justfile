@@ -21,7 +21,7 @@ setup: install-markdownlint
     @echo "Setup complete. Run: just ci"
 
 # Local CI: everything that gates a merge in this repository.
-ci: docs-check validate-skills validate-skills-spec test-python lint-sh
+ci: docs-check validate-skills validate-agents validate-skills-spec test-python lint-sh
     @:
 
 # All documentation checks: Markdown lint plus internal link validation.
@@ -69,6 +69,10 @@ lint-md *PATHS:
 validate-skills:
     @python3 "{{ root_dir }}/.ci_scripts/validate_skills.py" "{{ root_dir }}/skills"
 
+# Validate Claude Code agent frontmatter, preloaded skills, and the agent index.
+validate-agents:
+    @python3 "{{ root_dir }}/.ci_scripts/validate_agents.py" "{{ root_dir }}/agents" "{{ root_dir }}/skills"
+
 # Validate skills against the Agent Skills spec (skills-ref). Skipped when skills-ref is absent.
 validate-skills-spec:
     #!/usr/bin/env bash
@@ -107,7 +111,7 @@ lint-sh:
     fi
     shellcheck scripts/*.sh claude/*.sh
 
-# Link the skills and global AGENTS.md into ~/.claude, ~/.cursor, ~/.gemini, ~/.codex, and ~/.grok.
+# Link the skills, Claude agents, and global AGENTS.md into ~/.claude, ~/.cursor, ~/.gemini, ~/.codex, and ~/.grok.
 install *ARGS:
     @bash "{{ root_dir }}/scripts/install.sh" {{ ARGS }}
 

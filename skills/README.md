@@ -5,6 +5,7 @@
 Each subdirectory here is one skill, addressed by its directory name and defined by its `SKILL.md`.
 Agent tools read this directory directly through the symlinks created by `just install`, so a change to a skill takes effect the next time an agent session starts.
 See [Skill Authoring Standards](../docs/docs_standards/skill_authoring.md) before adding or editing a skill.
+The Claude Code agents in [`agents/`](../agents/README.md) preload skills from here by name, so renaming a skill also breaks any agent that lists it.
 
 These skills are opinionated and reflect my own experience working with AI coding tools; see [Scope and Point of View](../README.md#scope-and-point-of-view) for the assumptions they carry and what to adapt before using them in another repository.
 The skills are licensed under CC BY 4.0 and carry no per-file license notice; see [Licensing](../CONTRIBUTING.md#licensing) for how to attribute one you copy or adapt.
