@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Link this repository's skills into the agent tools that read them.
 #
-# It also links agents/ to ~/.claude/agents, the directory Claude Code reads
-# user-level subagent definitions from, and links the global AGENTS.md into the tools that document a global
+# It also links each file in agents/ into ~/.claude/agents, the directory Claude
+# Code reads user-level subagent definitions from, and links the global
+# AGENTS.md into the tools that document a global
 # instruction file of their own, installs the Claude Code status line script
 # and points Claude's settings at it, and turns off agent commit and PR
 # attribution in every tool that supports the setting. The last two steps can
@@ -13,6 +14,11 @@
 #   - directory targets get one symlink pointing at skills/ as a whole.
 #   - per-skill targets get one symlink per skill directory inside their own
 #     skills directory, so tool-managed siblings are left in place.
+#
+# The agents are linked one file at a time for the same reason a per-skill
+# target is: ~/.claude/agents is usually a real directory that already holds
+# agents Claude Code or the user put there, and a link_one on the directory
+# itself would refuse to touch it and install nothing.
 #
 # Existing paths are never replaced unless --force is given, and a symlink that
 # already points at the right place is reported as already installed.
@@ -40,9 +46,9 @@ directory_targets=(
     "${HOME}/.gemini/config/skills"
 )
 
-# Targets that receive a single symlink to the whole agents/ directory. Only
-# Claude Code reads this file format today, so only its directory is linked.
-agent_directory_targets=(
+# Targets that receive one symlink per agent file. Only Claude Code reads this
+# file format today, so only its agents directory is linked.
+per_agent_targets=(
     "${HOME}/.claude/agents"
 )
 
@@ -149,8 +155,15 @@ for target in "${per_skill_targets[@]}"; do
 done
 
 echo "Claude agents:"
-for target in "${agent_directory_targets[@]}"; do
-    link_one "$agents_dir" "$target"
+for target in "${per_agent_targets[@]}"; do
+    [ -d "$target" ] || run mkdir -p "$target"
+    for agent_path in "$agents_dir"/*.md; do
+        agent_name="$(basename "$agent_path")"
+        if [ "$agent_name" = "README.md" ]; then
+            continue
+        fi
+        link_one "$agent_path" "${target}/${agent_name}"
+    done
 done
 
 echo "Global instruction file:"
@@ -309,9 +322,12 @@ def configure_codex_toml(path, key, value):
     say("configured: %s" % path)
 
 
+# sessionUrl is a separate switch from commit and pr: it defaults to true and
+# appends a claude.ai session link to commits and PR bodies, but only in web and
+# Remote Control sessions, so an empty commit and pr pair does not cover it.
 configure_json(
     home / ".claude" / "settings.json",
-    {"attribution": {"commit": "", "pr": ""}},
+    {"attribution": {"commit": "", "pr": "", "sessionUrl": False}},
     "claude",
 )
 configure_codex_toml(home / ".codex" / "config.toml", "commit_attribution", "")

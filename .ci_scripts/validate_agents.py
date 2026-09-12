@@ -34,6 +34,7 @@ INDEX_FILENAME = "README.md"
 SKILL_FILENAME = "SKILL.md"
 
 REQUIRED_KEYS = ("name", "description")
+REPO_REQUIRED_KEYS = ("model", "color")
 KNOWN_KEYS = (
     "name",
     "description",
@@ -47,15 +48,31 @@ KNOWN_KEYS = (
     "maxTurns",
     "mcpServers",
     "hooks",
+    "color",
+    "background",
+    "effort",
+    "initialPrompt",
+    "experimental",
 )
 LIST_KEYS = ("skills", "mcpServers")
-NESTED_KEYS = ("hooks",)
+NESTED_KEYS = ("hooks", "experimental")
 
-MODEL_ALIASES = ("sonnet", "opus", "haiku", "inherit")
+MODEL_ALIASES = ("sonnet", "opus", "haiku", "fable", "inherit")
 MODEL_ID_PATTERN = re.compile(r"^claude-[a-z0-9-]+$")
-PERMISSION_MODES = ("default", "acceptEdits", "plan", "auto", "bypassPermissions", "dontAsk")
+PERMISSION_MODES = (
+    "default",
+    "manual",
+    "acceptEdits",
+    "plan",
+    "auto",
+    "bypassPermissions",
+    "dontAsk",
+)
 MEMORY_SCOPES = ("user", "project", "local")
 ISOLATION_MODES = ("worktree",)
+COLORS = ("red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan")
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+BOOLEANS = ("true", "false")
 
 MAX_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
@@ -150,6 +167,16 @@ def validate_enum(key: str, value: str, allowed: tuple[str, ...], location: str,
         report.error(location, f"{key} '{value}' must be one of {', '.join(allowed)}")
 
 
+def validate_effort(value: str, location: str, report: Report) -> None:
+    """Accept a documented effort level or a positive integer budget."""
+    if value in EFFORT_LEVELS or (value.isdigit() and int(value) > 0):
+        return
+    report.error(
+        location,
+        f"effort '{value}' must be one of {', '.join(EFFORT_LEVELS)} or a positive integer",
+    )
+
+
 def validate_tools(key: str, raw: str, location: str, report: Report) -> None:
     """Report an empty entry in a comma-separated tool list."""
     if any(not entry for entry in parse_tool_list(raw)):
@@ -176,6 +203,13 @@ def validate_agent(agent_file: Path, skills_root: Path, report: Report) -> str |
     for key in REQUIRED_KEYS:
         if not frontmatter.get(key):
             report.error(location, f"frontmatter is missing required key '{key}'")
+    for key in REPO_REQUIRED_KEYS:
+        if not frontmatter.get(key):
+            report.error(
+                location,
+                f"frontmatter is missing '{key}'; Claude Code treats it as optional "
+                "but this repository requires it",
+            )
 
     name = str(frontmatter.get("name", ""))
     if name and name != agent_file.stem:
@@ -204,6 +238,12 @@ def validate_agent(agent_file: Path, skills_root: Path, report: Report) -> str |
         validate_enum("memory", str(frontmatter["memory"]), MEMORY_SCOPES, location, report)
     if "isolation" in frontmatter:
         validate_enum("isolation", str(frontmatter["isolation"]), ISOLATION_MODES, location, report)
+    if "color" in frontmatter:
+        validate_enum("color", str(frontmatter["color"]), COLORS, location, report)
+    if "background" in frontmatter:
+        validate_enum("background", str(frontmatter["background"]), BOOLEANS, location, report)
+    if "effort" in frontmatter:
+        validate_effort(str(frontmatter["effort"]), location, report)
     if "maxTurns" in frontmatter:
         max_turns = str(frontmatter["maxTurns"])
         if not max_turns.isdigit() or int(max_turns) < 1:

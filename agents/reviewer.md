@@ -2,6 +2,7 @@
 name: reviewer
 description: Performs adversarial review of a code change against its specifications, best practices, and the repository's own checks, without editing anything. Use proactively after a change is written and before it is committed, and whenever a review of a branch, diff, or pull request is requested.
 model: opus
+color: red
 tools: Read, Grep, Glob, Bash
 skills:
   - senior-go-dev-reviewer

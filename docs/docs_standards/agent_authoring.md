@@ -16,7 +16,8 @@ Each agent is one file, `agents/<agent-name>.md`, and the filename without its e
 Claude Code addresses the agent by that name, so renaming the file is a breaking change for anyone who has typed it into a workflow or a project-level override.
 
 - [`agents/README.md`](../../agents/README.md) is the index and must link every agent; `just validate-agents` fails when one is missing.
-- `just install` links the whole directory to `~/.claude/agents`, so a new file needs no installer change.
+- `just install` links each file into `~/.claude/agents` one at a time, so a new file needs no installer change and any agent already in that directory is left alone.
+  An agent whose filename matches one already sitting there is reported as skipped rather than replaced, because the local file is the one Claude Code will use.
 - A project overrides an agent by placing a file with the same name under its own `.claude/agents/`, which is where a version that names one codebase's recipes and identifiers belongs.
 
 Agent names use lowercase kebab-case and read as a role: `reviewer`, `spec-author`.
@@ -27,15 +28,28 @@ Every agent file opens with YAML frontmatter delimited by `---` lines.
 
 - `name` is required and must exactly match the filename without its extension.
 - `description` is required and is the routing text Claude Code uses to decide when to delegate to the agent.
-- `model` is required by this repository, though Claude Code treats it as optional, and must be `sonnet`, `opus`, `haiku`, `inherit`, or a full `claude-*` model identifier.
+- `model` is required by this repository, though Claude Code treats it as optional, and must be `sonnet`, `opus`, `haiku`, `fable`, `inherit`, or a full `claude-*` model identifier.
   Prefer an alias so the agent tracks the current release of its tier.
-- `tools` is a comma-separated allowlist of tool names, and `disallowedTools` a denylist; omit both to inherit every tool.
+- `tools` is a comma-separated allowlist of tool names, and `disallowedTools` a denylist that Claude Code ignores when `tools` is set; omit both to inherit every tool.
 - `skills` is a YAML list of skill names, each of which must exist as `skills/<name>/SKILL.md`.
   Claude Code preloads the full text of each named skill into the agent's context at start, so every entry is paid for on every run.
-- `permissionMode`, `memory`, `isolation`, `maxTurns`, `mcpServers`, and `hooks` are recognized and checked against the values Claude Code documents.
+- `color` is required by this repository so an agent is identifiable at a glance, and must be one of `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink`, or `cyan`.
+- `permissionMode`, `memory`, `isolation`, `maxTurns`, `effort`, `background`, `initialPrompt`, `experimental`, `mcpServers`, and `hooks` are recognized and checked against the values Claude Code documents.
 
 Any other key is reported as a warning rather than an error, because Claude Code adds frontmatter fields on its own schedule.
 Treat a warning as a prompt to check for a typo before assuming the key is a new upstream field.
+
+## Preloading Versus Loading on Match
+
+A preloaded skill is paid for on every run of the agent, whether or not the run needs it.
+That is the right trade when the skill applies to everything the role does, and the wrong one when it applies to a fraction of the work.
+
+- Preload a skill the role always needs, such as `markdown-writer` for an agent that only writes Markdown.
+- Load a skill on match when which one applies depends on what the agent is handed, such as the language of a test or the type of a document.
+  Give the agent the `Skill` tool, list the choices under their own H2, and tell it to load at most one and leave the rest unloaded.
+- Do not do both for the same skill, and do not offer a choice so long that the agent has to reason about it; more than about six options means the role is really two roles.
+
+An agent with no `Skill` tool cannot load anything beyond its preloads, which is the point for a role whose rules are fixed.
 
 ## Writing the Description
 
@@ -51,7 +65,7 @@ The description is read by the model, not by a person scanning a list, so it is 
 Choose the model by what a mistake costs, not by what the agent is called.
 
 - `opus` for roles where judgment is the product and a miss is expensive: implementation against a specification, adversarial review, and planning.
-- `sonnet` for roles bounded by written conventions and a lint gate that catches drift: research, specification authoring, and feature authoring.
+- `sonnet` for roles bounded by written conventions and a lint gate that catches drift: research, test running, and the authoring roles.
 - `haiku` for a narrow agent that only searches or reformats and whose output is checked by something else.
 
 Record the choice and its reason in [`agents/README.md`](../../agents/README.md), so a reader can disagree with the reasoning rather than guess at it.
@@ -62,6 +76,7 @@ Give an agent the smallest tool allowance its role needs, and state the prohibit
 
 - A role that must not change the workspace, such as the reviewer or the researcher, lists read tools plus `Bash` for running checks, and its body says not to use the shell to edit.
 - A role that writes only one kind of file, such as the planner or an author, lists read tools plus `Write` and `Edit`, and its body names the files it may touch.
+- A role that chooses a skill from what it is handed adds `Skill` to that list, and no role gets `Skill` without a stated choice to make.
 - A role that implements code omits `tools` and inherits the full set.
 
 ## Body Structure
@@ -90,6 +105,6 @@ An agent here must work in any repository it is started in.
 
 Run the full local gate before committing an agent change.
 
-- `just validate-agents` checks frontmatter, naming, model and tool values, preloaded skills, the body opening, comments, and the index.
+- `just validate-agents` checks frontmatter, naming, model, color, effort and tool values, preloaded skills, the body opening, comments, and the index.
 - `just lint-md agents/<agent-name>.md` applies Markdown fixes and reports what it cannot fix.
 - `just ci` runs every check that CI runs.

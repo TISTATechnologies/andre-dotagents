@@ -2,6 +2,7 @@
 name: researcher
 description: Gathers facts from the repository, its documentation, and the web, and reports them with exact references, without making any changes. Use this agent when a question needs evidence collected from many files or sources before anyone decides what to do.
 model: sonnet
+color: blue
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---
 # Researcher

@@ -13,6 +13,7 @@ VALID_AGENT = """---
 name: sample-agent
 description: A sample agent used by the validator tests.
 model: sonnet
+color: blue
 tools: Read, Grep, Bash
 skills:
   - sample-skill
@@ -94,6 +95,58 @@ class ValidateAgentsTest(unittest.TestCase):
         text = VALID_AGENT.replace("model: sonnet\n", "model: sonnet\nmaxTurns: many\n")
         report = self.validate("sample-agent.md", text)
         self.assertTrue(any("maxTurns 'many'" in error for error in report.errors))
+
+    def test_missing_color_is_an_error(self) -> None:
+        report = self.validate("sample-agent.md", VALID_AGENT.replace("color: blue\n", ""))
+        self.assertTrue(any("missing 'color'" in error for error in report.errors))
+
+    def test_missing_model_is_an_error(self) -> None:
+        report = self.validate("sample-agent.md", VALID_AGENT.replace("model: sonnet\n", ""))
+        self.assertTrue(any("missing 'model'" in error for error in report.errors))
+
+    def test_fable_alias_is_accepted(self) -> None:
+        report = self.validate("sample-agent.md", VALID_AGENT.replace("model: sonnet", "model: fable"))
+        self.assertEqual(report.errors, [])
+
+    def test_manual_permission_mode_is_accepted(self) -> None:
+        text = VALID_AGENT.replace("model: sonnet\n", "model: sonnet\npermissionMode: manual\n")
+        report = self.validate("sample-agent.md", text)
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
+
+    def test_documented_color_is_accepted(self) -> None:
+        text = VALID_AGENT.replace("color: blue\n", "color: purple\n")
+        report = self.validate("sample-agent.md", text)
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
+
+    def test_unknown_color_is_an_error(self) -> None:
+        text = VALID_AGENT.replace("color: blue\n", "color: chartreuse\n")
+        report = self.validate("sample-agent.md", text)
+        self.assertTrue(any("color 'chartreuse'" in error for error in report.errors))
+
+    def test_background_must_be_a_boolean(self) -> None:
+        text = VALID_AGENT.replace("model: sonnet\n", "model: sonnet\nbackground: sometimes\n")
+        report = self.validate("sample-agent.md", text)
+        self.assertTrue(any("background 'sometimes'" in error for error in report.errors))
+
+    def test_effort_accepts_a_level_or_an_integer(self) -> None:
+        for value in ("xhigh", "12"):
+            text = VALID_AGENT.replace("model: sonnet\n", f"model: sonnet\neffort: {value}\n")
+            report = self.validate("sample-agent.md", text)
+            self.assertEqual(report.errors, [], value)
+            self.assertEqual(report.warnings, [], value)
+
+    def test_unknown_effort_is_an_error(self) -> None:
+        text = VALID_AGENT.replace("model: sonnet\n", "model: sonnet\neffort: extreme\n")
+        report = self.validate("sample-agent.md", text)
+        self.assertTrue(any("effort 'extreme'" in error for error in report.errors))
+
+    def test_experimental_block_is_recognized(self) -> None:
+        text = VALID_AGENT.replace("model: sonnet\n", "model: sonnet\nexperimental:\n  cacheTtl: 1h\n")
+        report = self.validate("sample-agent.md", text)
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
 
     def test_empty_tool_entry_is_an_error(self) -> None:
         report = self.validate("sample-agent.md", VALID_AGENT.replace("tools: Read, Grep, Bash", "tools: Read,, Bash"))

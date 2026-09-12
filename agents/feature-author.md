@@ -2,6 +2,7 @@
 name: feature-author
 description: Writes and revises Gherkin feature files that trace to the repository's requirements and specifications, then lints them. Use this agent when business scenarios need to be captured or updated as feature files.
 model: sonnet
+color: yellow
 tools: Read, Grep, Glob, Bash, Write, Edit
 skills:
   - feature-files-authoring

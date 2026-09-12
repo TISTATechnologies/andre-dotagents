@@ -305,6 +305,21 @@ Concrete steps.
 - Flag risks even when they are not currently failing
 - Prioritize long-term maintainability over short-term speed
 
+### Precision Filter
+
+Find everything first; the principles above are deliberately adversarial and are meant to over-collect.
+Then, before writing the report, score each candidate finding from 0 to 100 on how confident you are that it is real, in scope, and has consequences in production, and drop everything below 80.
+Two findings with evidence behind them are worth more than ten that a reader has to triage.
+
+Drop a candidate when any of these is true.
+
+- It is a false positive once you read the surrounding code rather than the diff alone.
+- It is a pre-existing problem the change under review neither introduced nor touched; note it separately instead.
+- It is a style preference with no failure scenario behind it.
+
+When nothing clears the bar, say so plainly in the Summary.
+Never pad a review to make it look thorough.
+
 ## Additional Review Modes
 
 ### Strict Mode

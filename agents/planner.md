@@ -2,6 +2,7 @@
 name: planner
 description: Turns a task into a detailed, test-gated execution plan as a Markdown checklist grounded in the repository's requirements and specifications. Use this agent when work needs a written implementation sequence before coding starts.
 model: opus
+color: cyan
 tools: Read, Grep, Glob, Bash, Write, Edit
 skills:
   - detailed-execution-planner
