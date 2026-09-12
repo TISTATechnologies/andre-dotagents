@@ -39,6 +39,7 @@ These skills set the implementation and review bar for code changes.
 - [`go-developer`](go-developer/SKILL.md) - Applies modern Go semantics, type safety, and secure secret handling when writing or refactoring Go.
 - [`python-test-automation`](python-test-automation/SKILL.md) - Guides writing Python functional and end-to-end tests that validate application behavior.
 - [`senior-go-dev-reviewer`](senior-go-dev-reviewer/SKILL.md) - Performs adversarial Go code review against specs, best practices, and production readiness.
+- [`code-review-precision`](code-review-precision/SKILL.md) - Keeps a review to the findings that are real and worth acting on.
 - [`just-ci`](just-ci/SKILL.md) - `just ci` final check must pass before execution is complete.
 
 ## Planning and Collaboration

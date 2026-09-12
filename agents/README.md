@@ -16,8 +16,11 @@ A project can override any agent by putting a file with the same name in its own
 
 - [`coder`](coder.md) - implements one scoped change end to end, with tests, and proves it against the repository's checks.
   Model `opus`; preloads `senior-developer`, `go-developer`, and `just-ci`; inherits every tool.
-- [`reviewer`](reviewer.md) - performs adversarial review of a change without editing anything, and runs the repository's checks as part of the review.
-  Model `opus`; preloads `senior-go-dev-reviewer`; read-only tools plus the shell for lint and tests.
+- [`reviewer`](reviewer.md) - performs adversarial review of a change in any language without editing anything, and runs the repository's checks as part of the review.
+  Model `opus`; preloads `senior-developer` and `code-review-precision`; read-only tools plus the shell for lint and tests.
+- [`reviewer-go`](reviewer-go.md) - performs the same review for Go, against modern Go practice and its concurrency and security risks.
+  Model `opus`; preloads `senior-go-dev-reviewer` and `code-review-precision`; the same read-only tools.
+  Both reviewers share the color `red`, because the color names the role and the suffix names the scope.
 - [`test-runner`](test-runner.md) - runs the tests, diagnoses each failure down to a root cause, and writes or repairs tests when the task calls for it.
   Model `sonnet`; preloads `senior-developer` and `just-ci`, and loads the language's test skill on match.
 - [`researcher`](researcher.md) - gathers facts from the repository and the web and reports them with exact references, without making changes.
@@ -28,14 +31,14 @@ A project can override any agent by putting a file with the same name in its own
   Model `sonnet`; preloads `spec-authoring`, `requirements-authoring`, and `markdown-writer`.
 - [`feature-author`](feature-author.md) - writes and revises Gherkin feature files that trace to requirements and specifications, then lints them.
   Model `sonnet`; preloads `feature-files-authoring` and `markdown-writer`.
-- [`docs-writer`](docs-writer.md) - writes and revises Markdown documentation to the repository's own conventions and leaves it lint clean.
-  Model `sonnet`; preloads `markdown-writer`, and loads the skill for the document type on match.
+- [`docs-writer`](docs-writer.md) - writes, revises, and audits Markdown documentation against the repository's own conventions and leaves it lint clean.
+  Model `sonnet`; preloads `markdown-writer`, and loads the skill for the document type, or `code-review-precision` for an audit, on match.
 
 ## Model Selection
 
 Each agent names a model alias rather than a dated model identifier, so it tracks the current release of that tier without an edit here.
 
-- `opus` goes to the roles where judgment is the product: implementing against a specification, adversarial review, and planning.
+- `opus` goes to the roles where judgment is the product: implementing against a specification, either kind of adversarial review, and planning.
   A missed defect or a wrong plan costs more than the difference in price.
 - `sonnet` goes to the roles that are bounded by written conventions and a lint gate: research, test running, and the three authoring roles.
   Those agents follow rules the skills state and the repository's checks enforce, so the mid tier is enough and runs faster.

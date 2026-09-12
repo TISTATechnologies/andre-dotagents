@@ -1,8 +1,8 @@
 # `dotagents`
 
 [![License: MIT + CC BY 4.0](https://img.shields.io/badge/License-MIT%20%2B%20CC%20BY%204.0-blue.svg)](LICENSE)
-[![Skills](https://img.shields.io/badge/skills-20-blueviolet)](skills/README.md)
-[![Agents](https://img.shields.io/badge/agents-8-blueviolet)](agents/README.md)
+[![Skills](https://img.shields.io/badge/skills-21-blueviolet)](skills/README.md)
+[![Agents](https://img.shields.io/badge/agents-9-blueviolet)](agents/README.md)
 [![Docs](https://img.shields.io/badge/docs-standards-informational)](docs/docs_standards/README.md)
 
 ## Overview
@@ -34,7 +34,7 @@ Where a skill can discover a convention from the repository it is running in, I 
 ## Highlights
 
 - 🧩 **One source of truth**: every agent tool reads the same `skills/` directory through symlinks; there are no per-tool copies to drift.
-- 🤖 **Agents built on skills**: a coder, reviewer, test runner, researcher, planner, spec author, feature author, and docs writer, each preloading the skills for its role, with a model chosen per role.
+- 🤖 **Agents built on skills**: a coder, two reviewers, test runner, researcher, planner, spec author, feature author, and docs writer, each preloading the skills for its role, with a model chosen per role.
 - 🔗 **One-command install**: `just install` creates the links each tool expects, and `just install-dry-run` shows the plan first.
 - ✅ **Validated**: `just ci` checks skill frontmatter, naming, agent manifests, agent definitions, Markdown conventions, and internal links.
 - 📐 **Documented conventions**: the frontmatter contract and prose rules live in [docs/docs_standards/](docs/docs_standards/README.md), not in reviewers' heads.
@@ -69,6 +69,7 @@ Use `just --list` to see every recipe.
 - Whole-directory links, one symlink pointing at `skills/`: `~/.claude/skills`, `~/.cursor/skills`, and `~/.gemini/config/skills`.
 - Per-agent links, one symlink per agent file inside `~/.claude/agents`.
   Only Claude Code reads this file format, so only its directory receives them, and linking file by file leaves any agent already sitting there untouched.
+  Anything in that directory this repository does not provide is reported at the end of the run and never removed, so a renamed agent's dangling link is visible without putting your own agents at risk.
 - Per-skill links, one symlink per skill inside a directory the tool manages itself: `~/.codex/skills` and `~/.grok/skills`.
 - Instruction-file links, one symlink pointing at `AGENTS.md`: `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.cursor/rules/AGENTS.md`, `~/.gemini/GEMINI.md`, and `~/.grok/AGENTS.md`.
   The Gemini link uses that tool's own filename, which is what it reads by default.

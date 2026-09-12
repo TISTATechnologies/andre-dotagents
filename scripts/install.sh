@@ -18,7 +18,10 @@
 # The agents are linked one file at a time for the same reason a per-skill
 # target is: ~/.claude/agents is usually a real directory that already holds
 # agents Claude Code or the user put there, and a link_one on the directory
-# itself would refuse to touch it and install nothing.
+# itself would refuse to touch it and install nothing. Linking file by file
+# cannot clean up after itself, so anything else found in that directory,
+# including a link left dangling by a renamed agent, is reported rather than
+# removed.
 #
 # Existing paths are never replaced unless --force is given, and a symlink that
 # already points at the right place is reported as already installed.
@@ -109,6 +112,43 @@ run() {
     fi
 }
 
+# report_extra_agents <source_dir> <target_dir>
+# Report entries in the target that this repository did not just link, and
+# remove nothing. A leftover from a renamed agent and an agent the user added
+# deliberately look identical from here, so the choice is theirs to make.
+report_extra_agents() {
+    local source_dir="$1" target_dir="$2" entry name resolved
+    local -a stale=() unmanaged=()
+
+    [ -d "$target_dir" ] || return 0
+    for entry in "$target_dir"/*.md; do
+        [ -e "$entry" ] || [ -L "$entry" ] || continue
+        name="$(basename "$entry")"
+        if [ -L "$entry" ] && [ ! -e "$entry" ]; then
+            stale+=("${name} -> $(readlink "$entry")")
+            continue
+        fi
+        resolved="$(readlink -f "$entry" 2>/dev/null || true)"
+        case "$resolved" in
+            "$source_dir"/*) continue ;;
+        esac
+        unmanaged+=("$name")
+    done
+
+    if [ "${#stale[@]}" -gt 0 ]; then
+        echo "  note: broken link(s) in ${target_dir}, left in place for you to remove:" >&2
+        for entry in "${stale[@]}"; do
+            echo "    stale: ${entry}" >&2
+        done
+    fi
+    if [ "${#unmanaged[@]}" -gt 0 ]; then
+        echo "  note: agent(s) in ${target_dir} that this repository does not provide, left as they are:" >&2
+        for entry in "${unmanaged[@]}"; do
+            echo "    local: ${entry}" >&2
+        done
+    fi
+}
+
 # link_one <source> <link_path>
 link_one() {
     local source="$1" link_path="$2" existing
@@ -164,6 +204,7 @@ for target in "${per_agent_targets[@]}"; do
         fi
         link_one "$agent_path" "${target}/${agent_name}"
     done
+    report_extra_agents "$agents_dir" "$target"
 done
 
 echo "Global instruction file:"

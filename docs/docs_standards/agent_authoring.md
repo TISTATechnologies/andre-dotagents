@@ -18,6 +18,7 @@ Claude Code addresses the agent by that name, so renaming the file is a breaking
 - [`agents/README.md`](../../agents/README.md) is the index and must link every agent; `just validate-agents` fails when one is missing.
 - `just install` links each file into `~/.claude/agents` one at a time, so a new file needs no installer change and any agent already in that directory is left alone.
   An agent whose filename matches one already sitting there is reported as skipped rather than replaced, because the local file is the one Claude Code will use.
+  Linking file by file cannot clean up after itself, so `just install` also reports anything else it finds in that directory, including the link a renamed agent leaves dangling, and removes none of it; a leftover and an agent you added on purpose look the same from the installer.
 - A project overrides an agent by placing a file with the same name under its own `.claude/agents/`, which is where a version that names one codebase's recipes and identifiers belongs.
 
 Agent names use lowercase kebab-case and read as a role: `reviewer`, `spec-author`.
