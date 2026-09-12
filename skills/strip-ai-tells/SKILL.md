@@ -1,6 +1,6 @@
 ---
 name: strip-ai-tells
-description: Rewrites AI-sounding prose until it reads as human-written. Use this skill when a draft reads like AI wrote it: em dashes, negative parallelism, empty intensifiers, and filler triads.
+description: "Rewrites AI-sounding prose until it reads as human-written. Use this skill when a draft reads like AI wrote it: em dashes, negative parallelism, empty intensifiers, and filler triads."
 user-invocable: true
 ---
 # Strip AI Tells
