@@ -33,4 +33,4 @@ check:shell:
   stage: check
   image: koalaman/shellcheck-alpine:stable
   script:
-    - shellcheck scripts/*.sh claude/*.sh
+    - shellcheck scripts/*.sh claude/*.sh cursor/*.sh

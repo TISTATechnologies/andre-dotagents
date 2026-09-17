@@ -1,7 +1,7 @@
 #!/bin/sh
 # Claude Code status line: current dir, git branch, model and thinking
-# effort, context %, and rate limit % used. Colors are chosen to read well
-# when the terminal dims the status line.
+# effort, context % with a bar, and rate limit % used. Colors are chosen
+# to read well when the terminal dims the status line.
 #
 # NOTE TO AGENTS: this file is user-managed configuration. Do not edit it
 # unless the user has explicitly directed you to change the status line.
@@ -21,6 +21,21 @@ pct_color() {
     if (p < 70) print "'"$GREEN"'";
     else if (p < 90) print "'"$YELLOW"'";
     else print "'"$RED"'";
+  }'
+}
+
+# 10-character bar for a percentage: filled blocks, then empty.
+pct_bar() {
+  awk -v p="$1" 'BEGIN {
+    w = 10
+    if (p < 0) p = 0
+    if (p > 100) p = 100
+    n = int(p * w / 100 + 0.5)
+    if (n > w) n = w
+    bar = ""
+    for (i = 0; i < n; i++) bar = bar "━"
+    for (i = n; i < w; i++) bar = bar "╌"
+    printf "%s", bar
   }'
 }
 
@@ -53,7 +68,7 @@ if [ -n "$model" ]; then
 fi
 if [ -n "$ctx" ]; then
   c=$(pct_color "$ctx")
-  out="$out ${DIM}|${RESET} ctx ${c}$(printf '%.0f' "$ctx")%${RESET}"
+  out="$out ${DIM}|${RESET} ctx ${c}$(pct_bar "$ctx") $(printf '%.0f' "$ctx")%${RESET}"
 fi
 if [ -n "$five" ]; then
   c=$(pct_color "$five")

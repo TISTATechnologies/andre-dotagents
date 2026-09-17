@@ -74,7 +74,7 @@ Use `just --list` to see every recipe.
 - Instruction-file links, one symlink pointing at `AGENTS.md`: `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.cursor/rules/AGENTS.md`, `~/.gemini/GEMINI.md`, and `~/.grok/AGENTS.md`.
   The Gemini link uses that tool's own filename, which is what it reads by default.
 
-It also installs the Claude Code status line: `~/.claude/statusline-command.sh` is linked to [claude/statusline-command.sh](claude/statusline-command.sh), and `~/.claude/settings.json` is pointed at it, with the existing file backed up alongside first and every other setting left untouched.
+It also installs the Claude Code and Cursor status lines: `~/.claude/statusline-command.sh` is linked to [claude/statusline-command.sh](claude/statusline-command.sh), `~/.cursor/statusline-command.sh` is linked to [cursor/statusline-command.sh](cursor/statusline-command.sh), and each tool's settings file is pointed at its script, with the existing file backed up alongside first and every other setting left untouched.
 Pass `--no-statusline` (`just install --no-statusline`) to skip that step entirely.
 
 It then turns off agent commit and PR attribution in every tool that supports the setting:
@@ -94,6 +94,7 @@ A link that already points here is reported as installed, a link pointing elsewh
 - [.ci_scripts/](.ci_scripts/README.md) - dependency-free validation helpers and their unit tests.
 - [scripts/](scripts/install.sh) - the symlink installer.
 - [claude/](claude/statusline-command.sh) - Claude Code configuration kept in this repository and linked into `~/.claude`.
+- [cursor/](cursor/statusline-command.sh) - Cursor CLI configuration kept in this repository and linked into `~/.cursor`.
 - [justfile](justfile) - setup, install, lint, and validation entry points.
 - [AGENTS.md](AGENTS.md) - my global instructions for coding agents, distributed with the skills.
 - [AGENTS.override.md](AGENTS.override.md) - agent instructions specific to this repository.

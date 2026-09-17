@@ -4,10 +4,10 @@
 # It also links each file in agents/ into ~/.claude/agents, the directory Claude
 # Code reads user-level subagent definitions from, and links the global
 # AGENTS.md into the tools that document a global
-# instruction file of their own, installs the Claude Code status line script
-# and points Claude's settings at it, and turns off agent commit and PR
-# attribution in every tool that supports the setting. The last two steps can
-# be skipped with --no-statusline and --no-attribution.
+# instruction file of their own, installs the Claude Code and Cursor status
+# line scripts and points each tool's settings at its script, and turns off
+# agent commit and PR attribution in every tool that supports the setting.
+# The last two steps can be skipped with --no-statusline and --no-attribution.
 #
 # Two link styles are needed for the skills because the tools disagree about
 # what a skills directory is:
@@ -32,10 +32,14 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 skills_dir="${repo_root}/skills"
 agents_dir="${repo_root}/agents"
 agents_file="${repo_root}/AGENTS.md"
-statusline_source="${repo_root}/claude/statusline-command.sh"
-statusline_link="${HOME}/.claude/statusline-command.sh"
+claude_statusline_source="${repo_root}/claude/statusline-command.sh"
+claude_statusline_link="${HOME}/.claude/statusline-command.sh"
 claude_settings="${HOME}/.claude/settings.json"
-statusline_command="sh ~/.claude/statusline-command.sh"
+claude_statusline_command="sh ~/.claude/statusline-command.sh"
+cursor_statusline_source="${repo_root}/cursor/statusline-command.sh"
+cursor_statusline_link="${HOME}/.cursor/statusline-command.sh"
+cursor_settings="${HOME}/.cursor/cli-config.json"
+cursor_statusline_command="~/.cursor/statusline-command.sh"
 
 dry_run=0
 force=0
@@ -79,7 +83,7 @@ Usage: install.sh [--dry-run] [--force] [--no-statusline]
 
   --dry-run         Print the changes that would be made and change nothing.
   --force           Replace an existing symlink that points somewhere else.
-  --no-statusline   Skip installing and configuring the Claude Code status line.
+  --no-statusline   Skip installing and configuring the Claude Code and Cursor status lines.
   --no-attribution  Skip turning off agent commit and PR attribution.
   --help            Show this message.
 USAGE
@@ -149,6 +153,46 @@ report_extra_agents() {
     fi
 }
 
+# configure_statusline_settings <settings_path> <command>
+# Point a tool's settings file at its status line script, backing up first.
+configure_statusline_settings() {
+    local settings_path="$1" command="$2"
+    python3 -c '
+import json
+import shutil
+import sys
+
+path, command, dry_run = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+desired = {"type": "command", "command": command}
+
+try:
+    with open(path, encoding="utf-8") as handle:
+        settings = json.load(handle)
+except FileNotFoundError:
+    settings = {}
+except (OSError, ValueError) as error:
+    print("  skip: cannot read %s (%s)" % (path, error))
+    sys.exit(0)
+
+if settings.get("statusLine") == desired:
+    print("  ok: %s already points at the status line script" % path)
+    sys.exit(0)
+
+if dry_run:
+    print("  would set statusLine in %s to: %s" % (path, command))
+    sys.exit(0)
+
+if settings:
+    shutil.copy2(path, path + ".bak")
+    print("  backed up: %s.bak" % path)
+settings["statusLine"] = desired
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(settings, handle, indent=2)
+    handle.write("\n")
+print("  configured: statusLine in %s" % path)
+' "$settings_path" "$command" "$dry_run"
+}
+
 # link_one <source> <link_path>
 link_one() {
     local source="$1" link_path="$2" existing
@@ -216,41 +260,10 @@ if [ "$no_statusline" -eq 1 ]; then
     echo "Status line: skipped (--no-statusline)."
 else
     echo "Status line:"
-    link_one "$statusline_source" "$statusline_link"
-    python3 -c '
-import json
-import shutil
-import sys
-
-path, command, dry_run = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
-desired = {"type": "command", "command": command}
-
-try:
-    with open(path, encoding="utf-8") as handle:
-        settings = json.load(handle)
-except FileNotFoundError:
-    settings = {}
-except (OSError, ValueError) as error:
-    print("  skip: cannot read %s (%s)" % (path, error))
-    sys.exit(0)
-
-if settings.get("statusLine") == desired:
-    print("  ok: %s already points at the status line script" % path)
-    sys.exit(0)
-
-if dry_run:
-    print("  would set statusLine in %s to: %s" % (path, command))
-    sys.exit(0)
-
-if settings:
-    shutil.copy2(path, path + ".bak")
-    print("  backed up: %s.bak" % path)
-settings["statusLine"] = desired
-with open(path, "w", encoding="utf-8") as handle:
-    json.dump(settings, handle, indent=2)
-    handle.write("\n")
-print("  configured: statusLine in %s" % path)
-' "$claude_settings" "$statusline_command" "$dry_run"
+    link_one "$claude_statusline_source" "$claude_statusline_link"
+    configure_statusline_settings "$claude_settings" "$claude_statusline_command"
+    link_one "$cursor_statusline_source" "$cursor_statusline_link"
+    configure_statusline_settings "$cursor_settings" "$cursor_statusline_command"
 fi
 
 if [ "$no_attribution" -eq 1 ]; then

@@ -109,7 +109,7 @@ lint-sh:
         echo "shellcheck not installed; skipping shell lint."
         exit 0
     fi
-    shellcheck scripts/*.sh claude/*.sh
+    shellcheck scripts/*.sh claude/*.sh cursor/*.sh
 
 # Link the skills, Claude agents, and global AGENTS.md into ~/.claude, ~/.cursor, ~/.gemini, ~/.codex, and ~/.grok.
 install *ARGS:

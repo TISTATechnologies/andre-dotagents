@@ -49,4 +49,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run shellcheck
-        run: shellcheck scripts/*.sh claude/*.sh
+        run: shellcheck scripts/*.sh claude/*.sh cursor/*.sh
