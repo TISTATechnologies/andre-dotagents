@@ -53,6 +53,9 @@ just install          # link skills, agents, and instructions into every agent t
 just ci               # run the full local check suite
 ```
 
+To adapt this collection as your own, fork it on GitHub and clone the fork instead.
+Enable Actions on the fork so a daily workflow can merge `main` from here; see [Keeping a GitHub Fork Current](CONTRIBUTING.md#keeping-a-github-fork-current).
+
 I keep the clone at `~/.agents`, and the documentation assumes that path.
 Nothing requires it: `just install` resolves the repository root at run time and points every link at wherever the clone actually lives.
 If you move or re-clone it, run `just install --force` to repoint the links, because an existing link that points somewhere else is skipped rather than replaced.

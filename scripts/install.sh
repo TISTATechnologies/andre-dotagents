@@ -39,7 +39,7 @@ claude_statusline_command="sh ~/.claude/statusline-command.sh"
 cursor_statusline_source="${repo_root}/cursor/statusline-command.sh"
 cursor_statusline_link="${HOME}/.cursor/statusline-command.sh"
 cursor_settings="${HOME}/.cursor/cli-config.json"
-cursor_statusline_command="~/.cursor/statusline-command.sh"
+cursor_statusline_command="${HOME}/.cursor/statusline-command.sh"
 
 dry_run=0
 force=0

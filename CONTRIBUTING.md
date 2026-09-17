@@ -15,6 +15,21 @@ This is a personal, opinionated collection, so read [Scope and Point of View](RE
 A correction that comes with the evidence behind it is worth several that do not.
 Say what you ran and what it produced.
 
+## Keeping a GitHub Fork Current
+
+Forks of this repository on GitHub get a daily Actions workflow that merges `main` from the parent into the fork's `main`, the same operation as the Sync fork button.
+The workflow is [`.github/workflows/sync-fork.yml`](.github/workflows/sync-fork.yml).
+It does not run on this repository, only on a fork.
+
+Scheduled workflows stay disabled on a new fork until you turn Actions on from the Actions tab.
+Use **Sync fork** on that same tab if you want an update before the next daily run.
+
+A conflict with commits of your own on `main` fails the job.
+Resolve it with GitHub's Sync fork button, or merge `upstream/main` locally.
+
+The default `GITHUB_TOKEN` cannot apply upstream commits that change workflow files.
+If a sync fails with a workflows-permission error, add a `SYNC_FORK_TOKEN` repository secret whose personal access token has contents and workflows write permission, then re-run the workflow.
+
 ## New Skills
 
 New skills are welcome, and they are subject to additional vetting by me before they are merged.

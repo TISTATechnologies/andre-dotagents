@@ -1,0 +1,28 @@
+# Daily (and on-demand) sync of main from the parent repository.
+# Runs only on GitHub forks; skipped on the primary. Not paired with
+# GitLab: this uses GitHub's merge-upstream API, which GitLab does not have.
+#
+# Default GITHUB_TOKEN cannot apply upstream commits that change workflow
+# files. Forks that need those updates set a SYNC_FORK_TOKEN secret to a
+# PAT with contents and workflows write permission.
+
+name: Sync fork
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync main from upstream
+    if: github.event.repository.fork
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge upstream main into this fork
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_FORK_TOKEN || secrets.GITHUB_TOKEN }}
+        run: gh repo sync "${{ github.repository }}" --branch main
