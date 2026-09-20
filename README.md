@@ -65,7 +65,7 @@ Nothing is copied into the agent tools.
 
 ### Windows Setup With PowerShell
 
-For Windows with PowerShell and GitHub Copilot in VS Code, follow the [Windows Setup Guide](WINDOWS_SETUP.md):
+For Windows with PowerShell 7 or higher (`pwsh`) and GitHub Copilot in VS Code, follow the [Windows Setup Guide](WINDOWS_SETUP.md):
 
 ```powershell
 git clone https://github.com/cypher0n3/dotagents.git ~/.agents
@@ -102,10 +102,33 @@ Pass `--no-statusline` (`just install --no-statusline`) to skip that step entire
 It then turns off agent commit and PR attribution in every tool that supports the setting:
 `attribution.commit` and `attribution.pr` in Claude's `settings.json`, `commit_attribution` in Codex's `config.toml`, and `attribution.attributeCommitsToAgent` and `attribution.attributePRsToAgent` in Cursor's `cli-config.json`.
 Gemini and Grok document no such setting, so nothing is changed for them.
-Each file is backed up before it is written, every other setting is left alone, a tool that is not installed is skipped, and `--no-attribution` skips the step.
+Each existing settings file is backed up once per install before its first change, every other setting is left alone, a tool that is not installed is skipped, and `--no-attribution` skips the step.
 
 An existing path is never replaced silently.
 A link that already points here is reported as installed, a link pointing elsewhere is skipped unless `--force` is passed, and a real directory or file in the way is always skipped with a notice.
+
+### Cursor CLI Configuration Location
+
+Both installers resolve Cursor's `cli-config.json` using the same directory precedence as the CLI:
+
+1. `CURSOR_CONFIG_DIR`, when set to a nonblank value.
+2. `cursor` under `XDG_CONFIG_HOME`, when set to a nonblank value.
+3. `~/.cursor` otherwise.
+
+Status-line and attribution settings use this resolved file, and backups are saved beside it.
+A normal status-line install creates the selected configuration directory if needed; a dry run does not.
+The status-line script and the skill and instruction links remain under `~/.cursor`; these environment variables only change where the installer writes CLI settings.
+
+### Settings Backups
+
+Both installers save one backup per changed, pre-existing settings file per install, beside the original file.
+The backup preserves the file before either the status line or attribution is changed; a second change in the same run does not replace it.
+
+Backup names use `<filename>.<timestamp>.bak`, with a shared local ISO 8601 basic timestamp for the run: `yyyyMMddTHHmmss.ffffff+HHmm` (or `-HHmm` for a negative UTC offset).
+For example, `settings.json.20260920T041530.123456-0400.bak` uses a filename-safe timestamp with no colons, including on Windows.
+A later install that changes settings creates new backups and retains earlier ones, including legacy `.bak` files.
+A filename collision aborts the affected change instead of overwriting a backup.
+Dry runs, unchanged files, and files first created by the current install produce no backups.
 
 ## Repository Layout
 

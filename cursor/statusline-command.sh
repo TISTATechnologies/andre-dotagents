@@ -1,6 +1,6 @@
 #!/bin/sh
-# Cursor CLI status line: current dir, git branch, model and effort
-# summary, context % with a bar, and Cursor models / API % used.
+# Cursor CLI status line: current dir, git branch, model display name,
+# context % with a bar, and Cursor models / API % used.
 # Colors are chosen to read well when the terminal dims the status line.
 #
 # NOTE TO AGENTS: this file is user-managed configuration. Do not edit it
@@ -13,7 +13,6 @@ GREEN=$(printf '\033[32m')
 YELLOW=$(printf '\033[33m')
 RED=$(printf '\033[31m')
 MAGENTA=$(printf '\033[35m')
-CYAN=$(printf '\033[36m')
 
 # Pick a color for a percentage: green < 70, yellow < 90, red otherwise.
 pct_color() {
@@ -112,14 +111,6 @@ dirname=$(basename "$cwd")
 branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 model=$(printf '%s' "$input" | jq -r '.model.display_name // empty')
-# Cursor sends a formatted param summary instead of Claude's effort
-# object; max mode is a separate flag with no Claude equivalent.
-effort=$(printf '%s' "$input" | jq -r '.model.param_summary // empty')
-effort=${effort#(}
-effort=${effort%)}
-if [ -z "$effort" ] && [ "$(printf '%s' "$input" | jq -r '.model.max_mode // false')" = "true" ]; then
-  effort="max"
-fi
 
 ctx=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty')
 usage=$(cursor_plan_usage)
@@ -129,9 +120,7 @@ api=$(printf '%s' "$usage" | jq -r '.api // empty')
 out="${DIM}[${RESET}${BLUE}${dirname}${RESET}${DIM}]${RESET}"
 [ -n "$branch" ] && out="$out ${DIM}(${RESET}${GREEN}${branch}${RESET}${DIM})${RESET}"
 if [ -n "$model" ]; then
-  out="$out ${DIM}{${RESET}${MAGENTA}${model}${RESET}"
-  [ -n "$effort" ] && out="$out ${DIM}· ${RESET}${CYAN}${effort}${RESET}"
-  out="$out${DIM}}${RESET}"
+  out="$out ${DIM}{${RESET}${MAGENTA}${model}${RESET}${DIM}}${RESET}"
 fi
 if [ -n "$ctx" ]; then
   c=$(pct_color "$ctx")

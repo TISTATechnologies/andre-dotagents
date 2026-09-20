@@ -21,6 +21,9 @@ They are Python 3 standard library only, so they run without a virtual environme
 Each script has an offline unit test beside it, named `test_<script>.py`, using only `unittest`.
 Run them with `just test-python`, which discovers every `test_*.py` in this directory.
 
+Installer regression tests cover original settings preservation, timestamped backups, repeated runs, and dry runs using temporary homes rather than the real user configuration.
+The Bash tests require Unix Bash; the PowerShell tests require PowerShell 7 (`pwsh`) and report a skip when that runtime is unavailable.
+
 ## Conventions
 
 Keep these scripts dependency-free so that a fresh clone can run `just ci` with nothing installed but `just`, `python3`, and `markdownlint-cli2`.

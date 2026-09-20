@@ -1,3 +1,5 @@
+#requires -Version 7.0
+
 <#
 .SYNOPSIS
     Install this repository's skills, agents, and instructions into the agent
@@ -59,6 +61,12 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# One local, filename-safe ISO timestamp and backup decision per install run.
+$script:settingsBackupTimestamp = (Get-Date).ToString(
+    "yyyyMMdd'T'HHmmss.ffffffzzz", [System.Globalization.CultureInfo]::InvariantCulture
+).Replace(':', '')
+$script:settingsBackupHandled = @{}
 
 # --- helpers ---------------------------------------------------------------
 
@@ -288,16 +296,33 @@ function Get-OrCreateChild {
     return $Object.$Name
 }
 
+# Preserve the original bytes once, before the first write to each settings file.
+function Backup-SettingsOnce {
+    param([Parameter(Mandatory)][string]$Path)
+    if ($DryRun -or $script:settingsBackupHandled.ContainsKey($Path)) { return }
+    if (Test-Path -LiteralPath $Path) {
+        $backup = "$Path.$script:settingsBackupTimestamp.bak"
+        # Unlike Copy-Item, this overload atomically refuses an existing target.
+        # A collision or copy failure must stop the caller before its source edit.
+        [System.IO.File]::Copy($Path, $backup, $false)
+        Write-Detail "backed up: $backup"
+    }
+    # Remember missing files too: a later mutation must not back up a file that
+    # this run created with only its first settings change applied.
+    $script:settingsBackupHandled[$Path] = $true
+}
+
 # Apply a mutation scriptblock to a JSON settings file, backing up and writing
 # only when the mutation changes something.
 function Update-JsonSettings {
     param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$Label,
-        [Parameter(Mandatory)][scriptblock]$Mutate
+        [Parameter(Mandatory)][scriptblock]$Mutate,
+        [switch]$CreateParent
     )
     $parent = Split-Path -Parent $Path
-    if (-not (Test-Path -LiteralPath $parent)) {
+    if (-not (Test-Path -LiteralPath $parent) -and -not $CreateParent) {
         Write-Detail "skip: $Label is not installed"
         return
     }
@@ -316,10 +341,8 @@ function Update-JsonSettings {
         Write-Detail "would update: $Path"
         return
     }
-    if (Test-Path -LiteralPath $Path) {
-        Copy-Item -LiteralPath $Path -Destination "$Path.bak" -Force
-        Write-Detail "backed up: $Path.bak"
-    }
+    Backup-SettingsOnce $Path
+    Ensure-Parent $Path
     Set-Content -LiteralPath $Path -Value $after -Encoding UTF8
     Write-Detail "configured: $Path"
 }
@@ -336,7 +359,15 @@ $cursorStatuslineSource = Join-Path $repoRoot 'cursor\statusline-command.ps1'
 $claudeStatuslineLink = '~/.claude/statusline-command.ps1'
 $cursorStatuslineLink = '~/.cursor/statusline-command.ps1'
 $claudeSettings = Expand-Home '~/.claude/settings.json'
-$cursorSettings = Expand-Home '~/.cursor/cli-config.json'
+# Match Cursor CLI precedence; ignore empty/whitespace-only overrides.
+$cursorConfigDir = if (-not [string]::IsNullOrWhiteSpace($env:CURSOR_CONFIG_DIR)) {
+    $env:CURSOR_CONFIG_DIR
+} elseif (-not [string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME)) {
+    Join-Path $env:XDG_CONFIG_HOME 'cursor'
+} else {
+    Expand-Home '~/.cursor'
+}
+$cursorSettings = Join-Path $cursorConfigDir 'cli-config.json'
 $codexConfig = Expand-Home '~/.codex/config.toml'
 
 # Status line commands each tool writes into its settings file.
@@ -414,7 +445,7 @@ if ($NoStatusline) {
         Set-Prop $s 'statusLine' ([pscustomobject]@{ type = 'command'; command = $claudeStatuslineCommand })
     }
     Install-FileLink $cursorStatuslineSource $cursorStatuslineLink
-    Update-JsonSettings $cursorSettings 'cursor' {
+    Update-JsonSettings $cursorSettings 'cursor' -CreateParent {
         param($s)
         Set-Prop $s 'statusLine' ([pscustomobject]@{ type = 'command'; command = $cursorStatuslineCommand })
     }
@@ -454,10 +485,7 @@ if ($NoAttribution) {
                 if ($stripped -match '^commit_attribution\s*=') { $lines[$i] = $desired; $done = $true; break }
             }
             if (-not $done) { $lines.Add($desired) }
-            if (Test-Path -LiteralPath $codexConfig) {
-                Copy-Item -LiteralPath $codexConfig -Destination "$codexConfig.bak" -Force
-                Write-Detail "backed up: $codexConfig.bak"
-            }
+            Backup-SettingsOnce $codexConfig
             Set-Content -LiteralPath $codexConfig -Value (($lines -join "`n").TrimEnd() + "`n") -Encoding UTF8
             Write-Detail "configured: $codexConfig"
         }

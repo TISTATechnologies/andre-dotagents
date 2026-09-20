@@ -34,11 +34,9 @@ agents_dir="${repo_root}/agents"
 agents_file="${repo_root}/AGENTS.md"
 claude_statusline_source="${repo_root}/claude/statusline-command.sh"
 claude_statusline_link="${HOME}/.claude/statusline-command.sh"
-claude_settings="${HOME}/.claude/settings.json"
 claude_statusline_command="sh ~/.claude/statusline-command.sh"
 cursor_statusline_source="${repo_root}/cursor/statusline-command.sh"
 cursor_statusline_link="${HOME}/.cursor/statusline-command.sh"
-cursor_settings="${HOME}/.cursor/cli-config.json"
 cursor_statusline_command="${HOME}/.cursor/statusline-command.sh"
 
 dry_run=0
@@ -154,46 +152,6 @@ report_extra_agents() {
     fi
 }
 
-# configure_statusline_settings <settings_path> <command>
-# Point a tool's settings file at its status line script, backing up first.
-configure_statusline_settings() {
-    local settings_path="$1" command="$2"
-    python3 -c '
-import json
-import shutil
-import sys
-
-path, command, dry_run = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
-desired = {"type": "command", "command": command}
-
-try:
-    with open(path, encoding="utf-8") as handle:
-        settings = json.load(handle)
-except FileNotFoundError:
-    settings = {}
-except (OSError, ValueError) as error:
-    print("  skip: cannot read %s (%s)" % (path, error))
-    sys.exit(0)
-
-if settings.get("statusLine") == desired:
-    print("  ok: %s already points at the status line script" % path)
-    sys.exit(0)
-
-if dry_run:
-    print("  would set statusLine in %s to: %s" % (path, command))
-    sys.exit(0)
-
-if settings:
-    shutil.copy2(path, path + ".bak")
-    print("  backed up: %s.bak" % path)
-settings["statusLine"] = desired
-with open(path, "w", encoding="utf-8") as handle:
-    json.dump(settings, handle, indent=2)
-    handle.write("\n")
-print("  configured: statusLine in %s" % path)
-' "$settings_path" "$command" "$dry_run"
-}
-
 # link_one <source> <link_path>
 link_one() {
     local source="$1" link_path="$2" existing
@@ -262,33 +220,79 @@ if [ "$no_statusline" -eq 1 ]; then
 else
     echo "Status line:"
     link_one "$claude_statusline_source" "$claude_statusline_link"
-    configure_statusline_settings "$claude_settings" "$claude_statusline_command"
     link_one "$cursor_statusline_source" "$cursor_statusline_link"
-    configure_statusline_settings "$cursor_settings" "$cursor_statusline_command"
 fi
 
-if [ "$no_attribution" -eq 1 ]; then
+if [ "$no_statusline" -eq 1 ] && [ "$no_attribution" -eq 1 ]; then
     echo "Commit attribution: skipped (--no-attribution)."
 else
-    echo "Commit attribution:"
-    python3 - "$dry_run" <<'ATTRIBUTION_PY'
+# Keep all settings mutations in one process so each file is backed up once.
+python3 - "$dry_run" "$no_statusline" "$no_attribution" \
+    "$claude_statusline_command" "$cursor_statusline_command" <<'SETTINGS_PY'
 import json
+import os
 import shutil
 import sys
-import tomllib
+from datetime import datetime
 from pathlib import Path
 
-dry_run = sys.argv[1] == "1"
+dry_run, no_statusline, no_attribution = (value == "1" for value in sys.argv[1:4])
+claude_command, cursor_command = sys.argv[4:6]
 home = Path.home()
+# Match Cursor CLI precedence; ignore empty/whitespace-only overrides.
+custom_config = os.environ.get("CURSOR_CONFIG_DIR", "")
+xdg_config = os.environ.get("XDG_CONFIG_HOME", "")
+if custom_config.strip():
+    cursor_config_dir = Path(custom_config)
+elif xdg_config.strip():
+    cursor_config_dir = Path(xdg_config) / "cursor"
+else:
+    cursor_config_dir = home / ".cursor"
+cursor_settings = cursor_config_dir / "cli-config.json"
+backup_timestamp = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S.%f%z")
+backed_up = set()
 
 
 def say(message):
     print("  " + message)
 
 
-def backup(path):
-    shutil.copy2(path, str(path) + ".bak")
-    say("backed up: %s.bak" % path)
+def backup_once(path):
+    if path in backed_up:
+        return
+    if path.exists():
+        destination = Path(str(path) + "." + backup_timestamp + ".bak")
+        # Exclusive creation preserves older backups even on a timestamp collision.
+        fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as target, path.open("rb") as source:
+            shutil.copyfileobj(source, target)
+        shutil.copystat(path, destination)
+        say("backed up: %s" % destination)
+    # Remember absent files too: later mutations must not back up partial installs.
+    backed_up.add(path)
+
+
+def configure_statusline_settings(path, command):
+    desired = {"type": "command", "command": command}
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (OSError, ValueError) as error:
+        say("skip: cannot read %s (%s)" % (path, error))
+        return
+    if not isinstance(settings, dict):
+        say("skip: %s is not a JSON object" % path)
+        return
+    if settings.get("statusLine") == desired:
+        say("ok: %s already points at the status line script" % path)
+        return
+    if dry_run:
+        say("would set statusLine in %s to: %s" % (path, command))
+        return
+    backup_once(path)
+    settings["statusLine"] = desired
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    say("configured: statusLine in %s" % path)
 
 
 def merge(target, updates):
@@ -327,8 +331,7 @@ def configure_json(path, updates, label):
     if dry_run:
         say("would update: %s" % path)
         return
-    if path.exists():
-        backup(path)
+    backup_once(path)
     merge(settings, updates)
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
     say("configured: %s" % path)
@@ -336,6 +339,8 @@ def configure_json(path, updates, label):
 
 def configure_codex_toml(path, key, value):
     """Set a top-level key in config.toml, keeping it above the first table."""
+    import tomllib
+
     if not path.parent.is_dir():
         say("skip: codex is not installed")
         return
@@ -371,12 +376,20 @@ def configure_codex_toml(path, key, value):
     except tomllib.TOMLDecodeError as error:
         say("skip: edit would corrupt %s (%s); left unchanged" % (path, error))
         return
-    if path.exists():
-        backup(path)
+    backup_once(path)
     path.write_text(updated, encoding="utf-8")
     say("configured: %s" % path)
 
 
+if not no_statusline:
+    configure_statusline_settings(home / ".claude" / "settings.json", claude_command)
+    configure_statusline_settings(cursor_settings, cursor_command)
+
+if no_attribution:
+    print("Commit attribution: skipped (--no-attribution).")
+    sys.exit(0)
+
+print("Commit attribution:")
 # sessionUrl is a separate switch from commit and pr: it defaults to true and
 # appends a claude.ai session link to commits and PR bodies, but only in web and
 # Remote Control sessions, so an empty commit and pr pair does not cover it.
@@ -387,12 +400,12 @@ configure_json(
 )
 configure_codex_toml(home / ".codex" / "config.toml", "commit_attribution", "")
 configure_json(
-    home / ".cursor" / "cli-config.json",
+    cursor_settings,
     {"attribution": {"attributeCommitsToAgent": False, "attributePRsToAgent": False}},
     "cursor",
 )
 say("note: gemini and grok document no attribution setting; nothing to change")
-ATTRIBUTION_PY
+SETTINGS_PY
 fi
 
 if [ "$dry_run" -eq 1 ]; then

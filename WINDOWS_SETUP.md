@@ -8,11 +8,14 @@ The installer uses directory junctions and hard links instead of symbolic links,
 
 ## Prerequisites
 
-- **PowerShell 5.1 or higher** (included in Windows 10+)
+- **PowerShell 7 or higher** (`pwsh` on `PATH`; install separately from Windows PowerShell)
 - **Git for Windows** (for cloning and git operations)
 - **Python 3.x** (for validation scripts)
 - **VS Code** or **Claude Code** or **Cursor**
 - **GitHub Copilot** extension in VS Code (for GitHub Copilot integration)
+
+Install PowerShell 7 with `winget install --id Microsoft.PowerShell --source winget`, then open `pwsh` before running the commands below.
+The installer requires PowerShell 7, and the installed status line commands also use `pwsh`.
 
 ### Optional
 
@@ -63,6 +66,10 @@ cd ~/.agents
 # -NoAttribution         Skip disabling agent commit/PR attribution
 # -DryRun                Show what would happen without making changes
 ```
+
+Before changing an existing settings file, the installer saves one timestamped backup beside it for that run, even when both the status line and attribution change.
+See [Settings Backups](README.md#settings-backups) for the filename format and retention behavior.
+Cursor CLI settings honor `$env:CURSOR_CONFIG_DIR`, then `$env:XDG_CONFIG_HOME` with a `cursor` subdirectory, then `~/.cursor`; see [Cursor CLI Configuration Location](README.md#cursor-cli-configuration-location).
 
 ### 3. Verify Installation
 
