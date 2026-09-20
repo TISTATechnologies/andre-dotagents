@@ -9,7 +9,8 @@
 
 These are my agent skills and instructions, kept in one place and shared across every agent tool I use.
 One directory under [`skills/`](skills/README.md) is one skill.
-Claude Code, Codex, Cursor, Gemini, Grok, and GitHub Copilot in VS Code all read that same directory through symlinks, so I edit a skill once and it takes effect everywhere the next time a session starts.
+Claude Code, Codex, Cursor, Gemini, Grok, and GitHub Copilot in VS Code read that directory through symlinks; Hermes Agent scans it as an external skill directory.
+I edit a skill once and it takes effect everywhere the next time a session starts.
 One file under [`agents/`](agents/README.md) is one Claude Code subagent that preloads the skills its role needs, linked into `~/.claude/agents` the same way.
 
 They are personal and opinionated; see [Scope and Point of View](#scope-and-point-of-view) before adopting them wholesale.
@@ -33,9 +34,9 @@ Where a skill can discover a convention from the repository it is running in, I 
 
 ## Highlights
 
-- 🧩 **One source of truth**: every agent tool reads the same `skills/` directory through symlinks; there are no per-tool copies to drift.
+- 🧩 **One source of truth**: every agent tool reads the same `skills/` directory through links or external-directory registration; there are no per-tool copies to drift.
 - 🤖 **Agents built on skills**: a coder, two reviewers, test runner, researcher, planner, spec author, feature author, and docs writer, each preloading the skills for its role, with a model chosen per role.
-- 🔗 **One-command install**: `just install` creates the links each tool expects, and `just install-dry-run` shows the plan first.
+- 🔗 **One-command install**: `just install` creates the links each tool expects and registers the skills with an existing Hermes setup; `just install-dry-run` shows the plan first.
 - ✅ **Validated**: `just ci` checks skill frontmatter, naming, agent manifests, agent definitions, Markdown conventions, and internal links.
 - 📐 **Documented conventions**: the frontmatter contract and prose rules live in [docs/docs_standards/](docs/docs_standards/README.md), not in reviewers' heads.
 - 🪶 **No dependencies**: the checks are Python standard library plus `markdownlint-cli2`, so a fresh clone validates immediately.
@@ -60,8 +61,9 @@ I keep the clone at `~/.agents`, and the documentation assumes that path.
 Nothing requires it: `just install` resolves the repository root at run time and points every link at wherever the clone actually lives.
 If you move or re-clone it, run `just install --force` to repoint the links, because an existing link that points somewhere else is skipped rather than replaced.
 
-Nothing is copied into the agent tools.
-`just install` only creates symlinks back into this clone, so editing a file here changes what every tool reads, and deleting the clone breaks those links rather than leaving stale copies behind.
+On Unix, skill content stays in this clone.
+`just install` creates symlinks for the other tools and registers the skills directory with Hermes, so edits stay shared rather than leaving stale copies behind.
+Deleting the clone breaks the links and leaves Hermes pointing at a missing external directory.
 
 ### Windows Setup With PowerShell
 
@@ -106,6 +108,42 @@ Each existing settings file is backed up once per install before its first chang
 
 An existing path is never replaced silently.
 A link that already points here is reported as installed, a link pointing elsewhere is skipped unless `--force` is passed, and a real directory or file in the way is always skipped with a notice.
+
+### Hermes Agent
+
+Install and configure Hermes first, then run `just install` (or `scripts/install.ps1` on Windows).
+The installer uses `hermes config get` and `hermes config set` to append this clone's absolute `skills/` path to `skills.external_dirs` in the selected Hermes `config.yaml`.
+It requires a Hermes CLI with JSON config reads and structured list writes, and skips Hermes with a notice when the command or existing configuration is missing.
+Use `--no-hermes` on Unix or `-NoHermes` in PowerShell to skip this step independently of status-line and attribution settings.
+
+- The selected home is a nonblank `HERMES_HOME`, or the platform default: `~/.hermes` on Unix and `%LOCALAPPDATA%/hermes` on native Windows (falling back to `~/AppData/Local/hermes` when `LOCALAPPDATA` is unset).
+  CLI calls are pinned to that home; the installer does not follow a sticky active-profile selection or enumerate other profiles.
+- Existing external directories are retained as returned by Hermes's CLI, which can expand environment-variable placeholders when a write is needed.
+  Equivalent paths are not appended again; relative entries are interpreted against the Hermes home.
+- A changed configuration receives the same timestamped original backup as the other settings files, and the installer reads the setting back after writing it.
+  Hermes's own serializer controls YAML formatting; the backup preserves the original bytes.
+- Dry runs report the planned registration without invoking Hermes, so they cannot trigger CLI startup side effects.
+  Because they do not read the effective setting, the preview says the path will be appended only if absent.
+- Hermes's bundled and learned skills, `SOUL.md`, memories, credentials, and other settings are not replaced by the installer.
+  Local skills take precedence in the index, but current Hermes versions can reject a bare-name load when local and external skills share that name.
+  Use an unambiguous categorized path when available or resolve the naming collision yourself; the installer never renames or deletes skills.
+- External skills are shared, not read-only: Hermes can modify or delete them in this clone when its skill-management tools are used.
+  Review those changes in Git, or use filesystem permissions if the shared skills must be protected.
+
+Start a new Hermes session after installation and load a shared skill by name, for example `/make-commit`.
+For the default Unix profile, check the registered directories without starting a model session:
+
+```bash
+HERMES_HOME="$HOME/.hermes" hermes config get skills.external_dirs --json
+```
+
+For a custom home or profile, substitute the same `HERMES_HOME` used during installation so a sticky profile cannot redirect the check.
+
+This integration shares skills, not Claude Code's agent definitions or status-line implementation.
+The installer does not create `~/.hermes/AGENTS.md`, which is not a global instruction file for Hermes, and does not replace `SOUL.md` with this repository's instructions.
+Hermes reads project context files independently; an `AGENTS.override.md` replaces the adjacent `AGENTS.md` rather than supplementing it.
+Tool-specific invocation metadata such as `disable-model-invocation` is not a portable enforcement boundary.
+See the [Hermes skills documentation](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills) and [project context documentation](https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files).
 
 ### Cursor CLI Configuration Location
 

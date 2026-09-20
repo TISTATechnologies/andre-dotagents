@@ -43,6 +43,9 @@
 .PARAMETER NoAttribution
     Skip turning off agent commit and PR attribution.
 
+.PARAMETER NoHermes
+    Skip adding this repository's skills to Hermes skills.external_dirs.
+
 .EXAMPLE
     .\scripts\install.ps1 -DryRun
 
@@ -56,7 +59,8 @@ param(
     [switch]$Force,
     [switch]$Copy,
     [switch]$NoStatusline,
-    [switch]$NoAttribution
+    [switch]$NoAttribution,
+    [switch]$NoHermes
 )
 
 Set-StrictMode -Version Latest
@@ -347,6 +351,113 @@ function Update-JsonSettings {
     Write-Detail "configured: $Path"
 }
 
+# Keep Hermes configuration writes behind its CLI, never a YAML rewrite here.
+function Invoke-HermesConfig {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $global:LASTEXITCODE = 0
+    $output = & hermes @Arguments
+    if (-not $? -or $LASTEXITCODE -ne 0) {
+        throw "Hermes config command failed: $($Arguments -join ' ') (exit $LASTEXITCODE)"
+    }
+    return ($output -join "`n")
+}
+
+# Normalize only for comparison; preserve every existing list entry verbatim.
+function Get-HermesComparisonPath {
+    param([AllowEmptyString()][string]$Path, [string]$BasePath)
+    $expanded = $Path.Trim()
+    if ($IsWindows) { $expanded = [Environment]::ExpandEnvironmentVariables($expanded) }
+    $expanded = [regex]::Replace($expanded, '\$\{(?<name>[^}]+)\}|\$(?<name>[A-Za-z_][A-Za-z0-9_]*)', {
+        param($match)
+        $value = [Environment]::GetEnvironmentVariable($match.Groups['name'].Value)
+        if ($null -eq $value) { return $match.Value }
+        return $value
+    })
+    if ($expanded.Length -eq 0) { $expanded = '.' }
+    $expanded = Expand-Home $expanded
+    return [IO.Path]::GetFullPath($expanded, $BasePath).TrimEnd('\', '/')
+}
+
+# -NoEnumerate distinguishes a JSON array from a scalar or nested array.
+function ConvertFrom-HermesDirectories {
+    param([AllowEmptyString()][string]$Json)
+    if ($Json.Trim() -ceq 'null') { return ,@() }
+    if ([string]::IsNullOrWhiteSpace($Json)) {
+        throw 'Hermes skills.external_dirs must be a JSON list of strings (empty CLI output)'
+    }
+    $directories = ConvertFrom-Json -InputObject $Json -NoEnumerate
+    if ($directories -isnot [array]) {
+        throw 'Hermes skills.external_dirs must be a JSON list of strings'
+    }
+    foreach ($directory in $directories) {
+        if ($directory -isnot [string]) {
+            throw 'Hermes skills.external_dirs must be a JSON list of strings'
+        }
+    }
+    return ,$directories
+}
+
+function Install-HermesSkills {
+    $hermesHome = if (-not [string]::IsNullOrWhiteSpace($env:HERMES_HOME)) {
+        $env:HERMES_HOME.Trim()
+    } elseif ($IsWindows) {
+        if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+            Join-Path $env:LOCALAPPDATA 'hermes'
+        } else {
+            Join-Path $HOME 'AppData/Local/hermes'
+        }
+    } else {
+        Join-Path $HOME '.hermes'
+    }
+    $hermesHome = [IO.Path]::GetFullPath((Expand-Home $hermesHome), (Get-Location).ProviderPath)
+    $config = Join-Path $hermesHome 'config.yaml'
+    if (-not (Test-Path -LiteralPath $config -PathType Leaf)) {
+        Write-Detail "skip: Hermes config does not exist: $config"
+        return
+    }
+    if (-not (Get-Command hermes -ErrorAction SilentlyContinue)) {
+        Write-Detail 'skip: Hermes CLI is not installed'
+        return
+    }
+    $repoSkills = Resolve-Full $skillsDir
+    if ($DryRun) {
+        Write-Detail "would append $repoSkills to skills.external_dirs in $config (if not already present)"
+        return
+    }
+    $previousHome = $env:HERMES_HOME
+    try {
+        # An explicit home also prevents Hermes from selecting a sticky profile.
+        $env:HERMES_HOME = $hermesHome
+        $comparer = if ($IsWindows) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
+        $cliConfig = Invoke-HermesConfig @('config', 'path')
+        if (-not $comparer.Equals([IO.Path]::GetFullPath($cliConfig.Trim()), $config)) {
+            throw "Hermes config path does not match selected config: $cliConfig (expected $config)"
+        }
+        $raw = Invoke-HermesConfig @('config', 'get', 'skills.external_dirs', '--json')
+        $directories = ConvertFrom-HermesDirectories $raw
+        $comparisonPath = Get-HermesComparisonPath $repoSkills $hermesHome
+        foreach ($directory in $directories) {
+            if ([string]::IsNullOrWhiteSpace($directory)) { continue }
+            if ($comparer.Equals((Get-HermesComparisonPath $directory $hermesHome), $comparisonPath)) {
+                Write-Detail 'ok: Hermes skills.external_dirs already includes repository skills'
+                return
+            }
+        }
+        $desired = @($directories) + @($repoSkills)
+        $json = ConvertTo-Json -InputObject $desired -Compress
+        Backup-SettingsOnce $config
+        $null = Invoke-HermesConfig @('config', 'set', 'skills.external_dirs', $json)
+        $actual = Invoke-HermesConfig @('config', 'get', 'skills.external_dirs', '--json')
+        $verified = ConvertFrom-HermesDirectories $actual
+        if ((ConvertTo-Json -InputObject $verified -Compress) -cne $json) {
+            throw 'Hermes skills.external_dirs verification failed after config set'
+        }
+        Write-Detail "configured: $config (skills.external_dirs)"
+    } finally {
+        $env:HERMES_HOME = $previousHome
+    }
+}
+
 # --- paths -----------------------------------------------------------------
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -493,6 +604,13 @@ if ($NoAttribution) {
         Write-Detail 'skip: codex is not installed'
     }
     Write-Detail 'note: gemini and grok document no attribution setting; nothing to change'
+}
+
+if ($NoHermes) {
+    Write-Step 'Hermes skills: skipped (-NoHermes).'
+} else {
+    Write-Step 'Hermes skills:'
+    Install-HermesSkills
 }
 
 if ($DryRun) {

@@ -22,6 +22,7 @@ Each script has an offline unit test beside it, named `test_<script>.py`, using 
 Run them with `just test-python`, which discovers every `test_*.py` in this directory.
 
 Installer regression tests cover original settings preservation, timestamped backups, repeated runs, and dry runs using temporary homes rather than the real user configuration.
+Hermes tests use an offline CLI double to cover profile selection, external-directory registration, read/write failures, and preservation of local skills and identity.
 The Bash tests require Unix Bash; the PowerShell tests require PowerShell 7 (`pwsh`) and report a skip when that runtime is unavailable.
 
 ## Conventions

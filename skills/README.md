@@ -3,14 +3,15 @@
 ## Overview
 
 Each subdirectory here is one skill, addressed by its directory name and defined by its `SKILL.md`.
-Agent tools read this directory directly through the symlinks created by `just install`, so a change to a skill takes effect the next time an agent session starts.
+Agent tools read this directory through the links created by `just install`, or through external-directory registration for Hermes Agent, so a change to a skill takes effect the next time an agent session starts.
 See [Skill Authoring Standards](../docs/docs_standards/skill_authoring.md) before adding or editing a skill.
 The Claude Code agents in [`agents/`](../agents/README.md) preload skills from here by name, so renaming a skill also breaks any agent that lists it.
 
 These skills are opinionated and reflect my own experience working with AI coding tools; see [Scope and Point of View](../README.md#scope-and-point-of-view) for the assumptions they carry and what to adapt before using them in another repository.
 The skills are licensed under CC BY 4.0 and carry no per-file license notice; see [Licensing](../CONTRIBUTING.md#licensing) for how to attribute one you copy or adapt.
 
-A skill marked *(user-invoked only)* carries `disable-model-invocation: true` and runs only when you call it by name.
+The *(user-invoked only)* label describes the intended invocation style; enforcement depends on the skill's `disable-model-invocation` metadata and the consuming tool.
+Do not assume Hermes enforces another tool's invocation metadata; see [Hermes Agent](../README.md#hermes-agent).
 
 ## Design Notes
 

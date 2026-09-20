@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -21,7 +22,8 @@ class InstallBackupTest(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.home = Path(temp.name)
-        self.env = dict(os.environ, HOME=str(self.home), TZ="EST5")
+        self.env = dict(os.environ, HOME=str(self.home), TZ="EST5",
+                        HERMES_HOME=str(self.home / ".hermes"))
         for key in ("CURSOR_CONFIG_DIR", "XDG_CONFIG_HOME"):
             self.env.pop(key, None)
         self.paths = [
@@ -38,7 +40,7 @@ class InstallBackupTest(unittest.TestCase):
             path.parent.mkdir()
             path.write_bytes(content)
 
-    def install(self, *args: str, extra_env=None) -> subprocess.CompletedProcess:
+    def install(self, *args: str, extra_env=None, check=True) -> subprocess.CompletedProcess:
         env = dict(self.env, **(extra_env or {}))
         result = subprocess.run(
             ["bash", str(REPO / "scripts/install.sh"), *args],
@@ -48,11 +50,216 @@ class InstallBackupTest(unittest.TestCase):
             capture_output=True,
             timeout=30,
         )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        if check:
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result
 
     def backups(self, path: Path) -> list[Path]:
         return sorted(path.parent.glob(path.name + "*.bak"))
+
+    def seed_hermes(self, external_dirs=None, config_home=None):
+        root = config_home or self.home / ".hermes"
+        root.mkdir(parents=True)
+        config = root / "config.yaml"
+        config.write_text(json.dumps({"model": {"default": "keep"}, "skills": {
+            "external_dirs": external_dirs if external_dirs is not None else [],
+            "config": {"keep": True}}}) + "\n", encoding="utf-8")
+        (root / "SOUL.md").write_text("User identity\n", encoding="utf-8")
+        (root / "skills/local-skill").mkdir(parents=True)
+        (root / "skills/local-skill/SKILL.md").write_text("Local skill\n", encoding="utf-8")
+        tools = self.home / "hermes-bin"
+        tools.mkdir(exist_ok=True)
+        executable = tools / "hermes"
+        # Offline CLI double. Its JSON config is valid YAML; production writes
+        # must go through config set, never through the fixture's storage format.
+        executable.write_text("#!" + sys.executable + "\n" + r"""
+import json, os, sys
+from pathlib import Path
+root = Path(os.environ['HERMES_HOME'])
+config = root / 'config.yaml'
+with (Path.home() / 'hermes-calls').open('a') as log:
+    log.write(json.dumps(sys.argv[1:]) + '\n')
+args = sys.argv[1:]
+mode = os.environ.get('DOTAGENTS_HERMES_TEST_MODE', '')
+if args == ['config', 'path']:
+    print(config if mode != 'wrong-path' else root / 'other/config.yaml')
+elif args == ['config', 'get', 'skills.external_dirs', '--json']:
+    if mode == 'read-fail':
+        sys.exit(5)
+    if mode == 'bad-json':
+        print('not JSON')
+    else:
+        directories = json.loads(config.read_text())['skills']['external_dirs']
+        if mode == 'expand-env':
+            directories = [os.path.expandvars(p) for p in directories]
+        print(json.dumps(directories))
+elif args[:3] == ['config', 'set', 'skills.external_dirs']:
+    if mode == 'write-fail':
+        sys.exit(6)
+    if mode != 'no-write':
+        value = json.loads(config.read_text())
+        value['skills']['external_dirs'] = json.loads(args[3])
+        config.write_text(json.dumps(value) + '\n')
+else:
+    sys.exit(7)
+""", encoding="utf-8")
+        executable.chmod(0o755)
+        self.env["PATH"] = str(tools) + os.pathsep + self.env["PATH"]
+        self.env["HERMES_HOME"] = str(root)
+        return config
+
+    def test_hermes_appends_skills_preserving_config_and_original_backup(self):
+        config = self.seed_hermes(["~/team-skills"])
+        original = config.read_bytes()
+        self.install()
+        data = json.loads(config.read_text())
+        self.assertEqual(data["skills"]["external_dirs"], ["~/team-skills", str(REPO / "skills")])
+        self.assertEqual(data["skills"]["config"], {"keep": True})
+        self.assertEqual(data["model"], {"default": "keep"})
+        backups = self.backups(config)
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), original)
+        self.assertEqual(backups[0].name[len(config.name):],
+                         self.backups(self.paths[0])[0].name[len(self.paths[0].name):])
+        self.assertEqual((config.parent / "SOUL.md").read_text(), "User identity\n")
+        self.assertEqual((config.parent / "skills/local-skill/SKILL.md").read_text(), "Local skill\n")
+        self.assertFalse((config.parent / "AGENTS.md").exists())
+        after = config.read_bytes()
+        self.install()
+        self.assertEqual(config.read_bytes(), after)
+        self.assertEqual(self.backups(config), backups)
+
+    def test_hermes_dry_run_does_not_invoke_cli_or_change_config(self):
+        config = self.seed_hermes()
+        before = {str(p.relative_to(config.parent)): p.read_bytes()
+                  for p in config.parent.rglob("*") if p.is_file()}
+        result = self.install("--dry-run")
+        self.assertIn("would append", result.stdout)
+        self.assertIn(str(config), result.stdout)
+        self.assertEqual(before, {str(p.relative_to(config.parent)): p.read_bytes()
+                                 for p in config.parent.rglob("*") if p.is_file()})
+        self.assertFalse((self.home / "hermes-calls").exists())
+
+    def test_no_hermes_skips_config_even_when_installed(self):
+        config = self.seed_hermes()
+        original = config.read_bytes()
+        self.install("--no-hermes")
+        self.assertEqual(config.read_bytes(), original)
+        self.assertEqual(self.backups(config), [])
+        self.assertFalse((self.home / "hermes-calls").exists())
+
+    def test_hermes_custom_home_and_independent_settings_step(self):
+        config = self.seed_hermes(config_home=self.home / "custom profile")
+        default = self.home / ".hermes/config.yaml"
+        default.parent.mkdir()
+        default.write_text("untouched default\n", encoding="utf-8")
+        self.install("--no-statusline", "--no-attribution")
+        self.assertEqual(json.loads(config.read_text())["skills"]["external_dirs"], [str(REPO / "skills")])
+        self.assertEqual(default.read_text(), "untouched default\n")
+        self.assertEqual(self.backups(default), [])
+        for path, original in zip(self.paths, self.originals):
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_hermes_equivalent_path_is_noop(self):
+        config = self.seed_hermes()
+        for value in (str(REPO / "skills"), str(REPO / "skills/../skills"),
+                      "${DOTAGENTS_TEST_REPO}/skills", "~/shared-skills"):
+            with self.subTest(path=value):
+                link = self.home / "shared-skills"
+                if not link.exists():
+                    link.symlink_to(REPO / "skills", target_is_directory=True)
+                config.write_text(json.dumps({"skills": {"external_dirs": [value]}}))
+                original = (config.read_bytes(), config.stat().st_mtime_ns)
+                self.install(extra_env={"DOTAGENTS_TEST_REPO": str(REPO)})
+                self.assertEqual((config.read_bytes(), config.stat().st_mtime_ns), original)
+                self.assertEqual(self.backups(config), [])
+
+    def test_hermes_append_preserves_cli_resolved_directories(self):
+        config = self.seed_hermes(["${DOTAGENTS_TEAM}/skills"])
+        original = config.read_bytes()
+        team = str(self.home / "team")
+        env = {"DOTAGENTS_TEAM": team, "DOTAGENTS_HERMES_TEST_MODE": "expand-env"}
+        self.install(extra_env=env)
+        self.assertEqual(json.loads(config.read_text())["skills"]["external_dirs"],
+                         [team + "/skills", str(REPO / "skills")])
+        backups = self.backups(config)
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), original)
+        installed = config.read_bytes()
+        self.install(extra_env=env)
+        self.assertEqual(config.read_bytes(), installed)
+        self.assertEqual(self.backups(config), backups)
+
+    def test_hermes_relative_paths_are_based_on_hermes_home(self):
+        config = self.seed_hermes(["skills"])
+        self.install()
+        self.assertEqual(json.loads(config.read_text())["skills"]["external_dirs"],
+                         ["skills", str(REPO / "skills")])
+        relative = os.path.relpath(REPO / "skills", config.parent)
+        config.write_text(json.dumps({"skills": {"external_dirs": [" " + relative + " "]}}))
+        before = config.read_bytes()
+        backups = self.backups(config)
+        self.install()
+        self.assertEqual(config.read_bytes(), before)
+        self.assertEqual(self.backups(config), backups)
+
+    def test_hermes_blank_home_uses_default(self):
+        config = self.seed_hermes()
+        self.install(extra_env={"HERMES_HOME": "  "})
+        self.assertEqual(json.loads(config.read_text())["skills"]["external_dirs"], [str(REPO / "skills")])
+
+    def test_hermes_missing_config_does_not_invoke_cli(self):
+        config = self.seed_hermes()
+        config.unlink()
+        self.install()
+        self.assertFalse(config.exists())
+        self.assertFalse((self.home / "hermes-calls").exists())
+        self.assertEqual(self.backups(config), [])
+
+    def test_hermes_missing_cli_preserves_config(self):
+        config = self.seed_hermes()
+        original = config.read_bytes()
+        tools = self.home / "without-hermes"
+        tools.mkdir()
+        for command in ("bash", "dirname", "basename", "readlink", "mkdir", "ln", "python3"):
+            executable = shutil.which(command)
+            if executable:
+                (tools / command).symlink_to(executable)
+        result = self.install(extra_env={"PATH": str(tools)})
+        self.assertIn("hermes command not found", result.stdout)
+        self.assertEqual(config.read_bytes(), original)
+        self.assertEqual(self.backups(config), [])
+
+    def test_hermes_bad_reads_fail_before_backup_or_write(self):
+        config = self.seed_hermes()
+        original = config.read_bytes()
+        for mode in ("wrong-path", "read-fail", "bad-json"):
+            with self.subTest(mode=mode):
+                result = self.install(extra_env={"DOTAGENTS_HERMES_TEST_MODE": mode}, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(config.read_bytes(), original)
+                self.assertEqual(self.backups(config), [])
+        for value in ("not-a-list", {"bad": "mapping"}, [3]):
+            with self.subTest(value=value):
+                config.write_text(json.dumps({"skills": {"external_dirs": value}}))
+                original = config.read_bytes()
+                result = self.install(check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(config.read_bytes(), original)
+                self.assertEqual(self.backups(config), [])
+
+    def test_hermes_failed_or_ineffective_writes_keep_original_backup(self):
+        config = self.seed_hermes()
+        original = config.read_bytes()
+        for mode in ("write-fail", "no-write"):
+            with self.subTest(mode=mode):
+                previous = set(self.backups(config))
+                result = self.install(extra_env={"DOTAGENTS_HERMES_TEST_MODE": mode}, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(config.read_bytes(), original)
+                new = set(self.backups(config)) - previous
+                self.assertEqual(len(new), 1)
+                self.assertEqual(new.pop().read_bytes(), original)
 
     def test_one_timestamped_backup_preserves_original_before_both_updates(self) -> None:
         self.install()

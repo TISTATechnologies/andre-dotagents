@@ -64,12 +64,17 @@ cd ~/.agents
 # -Copy                  Copy files instead of hard-linking them
 # -NoStatusline          Skip statusline script installation and configuration
 # -NoAttribution         Skip disabling agent commit/PR attribution
+# -NoHermes              Skip external skill registration with Hermes
 # -DryRun                Show what would happen without making changes
 ```
 
 Before changing an existing settings file, the installer saves one timestamped backup beside it for that run, even when both the status line and attribution change.
 See [Settings Backups](README.md#settings-backups) for the filename format and retention behavior.
 Cursor CLI settings honor `$env:CURSOR_CONFIG_DIR`, then `$env:XDG_CONFIG_HOME` with a `cursor` subdirectory, then `~/.cursor`; see [Cursor CLI Configuration Location](README.md#cursor-cli-configuration-location).
+
+For an existing Hermes Agent installation, keep `hermes` on `PATH`; the installer registers this clone through `skills.external_dirs` rather than replacing Hermes's own skills directory.
+`HERMES_HOME` selects the target configuration; otherwise native Windows uses `%LOCALAPPDATA%/hermes`.
+See [Hermes Agent](README.md#hermes-agent) for profile handling, prerequisites, and the limits of shared skills.
 
 ### 3. Verify Installation
 

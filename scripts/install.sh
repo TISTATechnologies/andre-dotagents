@@ -8,6 +8,8 @@
 # line scripts and points each tool's settings at its script, and turns off
 # agent commit and PR attribution in every tool that supports the setting.
 # The last two steps can be skipped with --no-statusline and --no-attribution.
+# Existing Hermes setups scan skills/ via skills.external_dirs; --no-hermes
+# skips registration without replacing Hermes-owned skills or identity.
 #
 # Two link styles are needed for the skills because the tools disagree about
 # what a skills directory is:
@@ -43,6 +45,7 @@ dry_run=0
 force=0
 no_statusline=0
 no_attribution=0
+no_hermes=0
 
 # Targets that receive a single symlink to the whole skills/ directory.
 directory_targets=(
@@ -78,12 +81,13 @@ instruction_targets=(
 usage() {
     cat <<'USAGE'
 Usage: install.sh [--dry-run] [--force] [--no-statusline]
-                  [--no-attribution] [--help]
+                  [--no-attribution] [--no-hermes] [--help]
 
   --dry-run         Print the changes that would be made and change nothing.
   --force           Replace an existing symlink that points somewhere else.
   --no-statusline   Skip installing and configuring the Claude Code and Cursor status lines.
   --no-attribution  Skip turning off agent commit and PR attribution.
+  --no-hermes       Skip registering this repository as a Hermes skill directory.
   --help            Show this message.
 USAGE
 }
@@ -94,6 +98,7 @@ while [ "$#" -gt 0 ]; do
         --force) force=1 ;;
         --no-statusline) no_statusline=1 ;;
         --no-attribution) no_attribution=1 ;;
+        --no-hermes) no_hermes=1 ;;
         -h | --help)
             usage
             exit 0
@@ -223,21 +228,43 @@ else
     link_one "$cursor_statusline_source" "$cursor_statusline_link"
 fi
 
-if [ "$no_statusline" -eq 1 ] && [ "$no_attribution" -eq 1 ]; then
+# Pin CLI calls to the selected Hermes home rather than its sticky profile.
+hermes_home="${HERMES_HOME-}"
+hermes_home="${hermes_home#"${hermes_home%%[![:space:]]*}"}"
+hermes_home="${hermes_home%"${hermes_home##*[![:space:]]}"}"
+hermes_home="${hermes_home:-${HOME}/.hermes}"
+hermes_enabled=0
+hermes_command="$(type -P hermes || true)"
+echo "Hermes skills:"
+if [ "$no_hermes" -eq 1 ]; then
+    echo "  skipped (--no-hermes)."
+elif [ ! -f "$hermes_home/config.yaml" ]; then
+    echo "  skip: Hermes config not found at $hermes_home/config.yaml"
+elif [ -z "$hermes_command" ]; then
+    echo "  skip: hermes command not found on PATH"
+else
+    hermes_enabled=1
+fi
+
+if [ "$no_statusline" -eq 1 ] && [ "$no_attribution" -eq 1 ] && [ "$hermes_enabled" -eq 0 ]; then
     echo "Commit attribution: skipped (--no-attribution)."
 else
 # Keep all settings mutations in one process so each file is backed up once.
 python3 - "$dry_run" "$no_statusline" "$no_attribution" \
-    "$claude_statusline_command" "$cursor_statusline_command" <<'SETTINGS_PY'
+    "$claude_statusline_command" "$cursor_statusline_command" \
+    "$hermes_enabled" "$hermes_home" "$hermes_command" "$skills_dir" <<'SETTINGS_PY'
 import json
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
 dry_run, no_statusline, no_attribution = (value == "1" for value in sys.argv[1:4])
 claude_command, cursor_command = sys.argv[4:6]
+hermes_enabled = sys.argv[6] == "1"
+hermes_home, hermes_command, skills_dir = sys.argv[7:10]
 home = Path.home()
 # Match Cursor CLI precedence; ignore empty/whitespace-only overrides.
 custom_config = os.environ.get("CURSOR_CONFIG_DIR", "")
@@ -380,6 +407,51 @@ def configure_codex_toml(path, key, value):
     path.write_text(updated, encoding="utf-8")
     say("configured: %s" % path)
 
+
+def configure_hermes_skills():
+    path = Path(hermes_home) / "config.yaml"
+    skills_path = str(Path(skills_dir).resolve())
+    if dry_run:
+        say("would append %s to Hermes skills.external_dirs in %s if absent" % (skills_path, path))
+        return
+    env = dict(os.environ, HERMES_HOME=str(Path(hermes_home).resolve()))
+
+    def cli(*args):
+        result = subprocess.run([hermes_command, "config", *args], env=env,
+                                capture_output=True, text=True, timeout=60)
+        if result.returncode:
+            raise RuntimeError("Hermes config %s failed (exit %s); check %s" %
+                               (args[0], result.returncode, path))
+        return result.stdout.strip()
+
+    actual_path = Path(cli("path"))
+    if actual_path.resolve() != path.resolve():
+        raise RuntimeError("Hermes CLI resolved a different config; refusing to write")
+    current = json.loads(cli("get", "skills.external_dirs", "--json"))
+    if current is None:
+        current = []
+    if not isinstance(current, list) or not all(isinstance(p, str) for p in current):
+        raise ValueError("Hermes skills.external_dirs must be a list of paths")
+    target = Path(skills_path)
+    for entry in current:
+        if not entry.strip():
+            continue
+        existing = Path(os.path.expandvars(entry.strip())).expanduser()
+        if not existing.is_absolute():
+            existing = Path(hermes_home) / existing
+        if existing.resolve() == target:
+            say("ok: Hermes already scans %s" % skills_path)
+            return
+    desired = current + [skills_path]
+    backup_once(path)
+    cli("set", "skills.external_dirs", json.dumps(desired))
+    if json.loads(cli("get", "skills.external_dirs", "--json")) != desired:
+        raise RuntimeError("Hermes skills.external_dirs did not take effect; backup retained")
+    say("configured: Hermes skills.external_dirs in %s" % path)
+
+
+if hermes_enabled:
+    configure_hermes_skills()
 
 if not no_statusline:
     configure_statusline_settings(home / ".claude" / "settings.json", claude_command)
