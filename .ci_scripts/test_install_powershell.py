@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import warnings
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -58,12 +59,9 @@ class PowerShellInstallerTests(unittest.TestCase):
         self.home.mkdir()
         # Junction creation is Windows-only. Existing real directories are
         # deliberately skipped, so the full installer also runs safely on Unix.
-        for target in (".claude/skills", ".cursor/skills", ".gemini/config/skills",
-                       ".copilot/skills"):
-            (self.home / target).mkdir(parents=True)
-        for tool in (".codex", ".grok"):
+        for tool in (".claude", ".cursor", ".gemini/config", ".copilot", ".codex", ".grok"):
             for skill in (REPO / "skills").iterdir():
-                if skill.is_dir():
+                if (skill / "SKILL.md").is_file():
                     (self.home / tool / "skills" / skill.name).mkdir(parents=True)
         self.paths = [self.home / ".claude/settings.json",
                       self.home / ".cursor/cli-config.json",
@@ -542,6 +540,25 @@ class PowerShellInstallerTests(unittest.TestCase):
                 self.assertEqual(path.read_bytes(), originals[index])
                 collided = [p for p in self.backups(path) if p.read_bytes() == b"older snapshot"]
                 self.assertEqual(len(collided), 1)
+
+    def test_whole_directory_junction_from_older_install_is_migrated(self):
+        if os.name != "nt":
+            reason = "junctions exist only on Windows"
+            warnings.warn("Junction migration is NOT tested on this system: " + reason,
+                          stacklevel=1)
+            self.skipTest(reason)
+        skills = REPO / "skills"
+        link = self.home / ".claude/skills"
+        shutil.rmtree(link)
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(skills)],
+                       check=True, capture_output=True)
+        self.run_installer("-NoStatusline", "-NoAttribution", "-NoHermes")
+        expected = sorted(p.name for p in skills.iterdir() if (p / "SKILL.md").is_file())
+        self.assertTrue(link.is_dir() and not link.is_junction())
+        self.assertEqual(sorted(p.name for p in link.iterdir()), expected)
+        for name in expected:
+            self.assertTrue((skills / name / "SKILL.md").is_file(), name)
+
 
 if __name__ == "__main__":
     unittest.main()

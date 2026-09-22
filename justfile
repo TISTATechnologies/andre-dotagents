@@ -100,6 +100,34 @@ test-python:
     cd "{{ root_dir }}/.ci_scripts"
     python3 -m unittest discover -p 'test_*.py'
 
+# Run the PowerShell installer tests: with local pwsh when present, else in a PowerShell container (podman, then docker).
+test-powershell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ root_dir }}"
+    if command -v pwsh >/dev/null 2>&1; then
+        exec python3 .ci_scripts/test_install_powershell.py -v
+    fi
+    engine=""
+    for candidate in podman docker; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            engine="$candidate"
+            break
+        fi
+    done
+    if [ -z "$engine" ]; then
+        echo "Error: install PowerShell 7 (pwsh), podman, or docker to run the PowerShell tests." >&2
+        exit 1
+    fi
+    image="dotagents-pwsh-tests:7.5"
+    echo "pwsh not found; running the PowerShell tests in ${image} with ${engine}."
+    "$engine" build --quiet --file .ci_scripts/powershell.Containerfile --tag "$image" .ci_scripts
+    exec "$engine" run --rm \
+        --volume "{{ root_dir }}:/repo:ro,z" \
+        --env PYTHONDONTWRITEBYTECODE=1 \
+        --env POWERSHELL_TELEMETRY_OPTOUT=1 \
+        "$image" python3 .ci_scripts/test_install_powershell.py -v
+
 # Lint the repository's shell scripts (shellcheck). Skipped with a notice when shellcheck is absent.
 lint-sh:
     #!/usr/bin/env bash

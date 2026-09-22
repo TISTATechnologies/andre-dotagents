@@ -24,6 +24,8 @@ Run them with `just test-python`, which discovers every `test_*.py` in this dire
 Installer regression tests cover original settings preservation, timestamped backups, repeated runs, and dry runs using temporary homes rather than the real user configuration.
 Hermes tests use an offline CLI double to cover profile selection, external-directory registration, read/write failures, and preservation of local skills and identity.
 The Bash tests require Unix Bash; the PowerShell tests require PowerShell 7 (`pwsh`) and report a skip when that runtime is unavailable.
+`just test-powershell` runs them with a local `pwsh` when present and otherwise in the pinned PowerShell image from [`powershell.Containerfile`](powershell.Containerfile), using `podman` or `docker`, so a Linux or macOS machine without `pwsh` can still run them.
+The junction-migration test only runs on Windows, since junctions do not exist elsewhere; it warns and skips itself on every other system, including inside the container.
 
 ## Conventions
 

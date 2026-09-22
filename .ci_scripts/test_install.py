@@ -488,5 +488,108 @@ else:
             self.assertEqual(self.backups(path), [])
 
 
+SKILL_TARGETS = (".claude/skills", ".cursor/skills", ".gemini/config/skills",
+                 ".copilot/skills", ".codex/skills", ".grok/skills")
+
+
+@unittest.skipUnless(shutil.which("bash") and os.name != "nt", "requires Unix Bash")
+class InstallSkillLinksTest(unittest.TestCase):
+    """Skills are linked per skill, so a tool's own skills never land in the repository."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        self.home = root / "home"
+        self.home.mkdir()
+        # A fake repository keeps the real skills/ untouched.
+        self.repo = root / "repo"
+        (self.repo / "scripts").mkdir(parents=True)
+        shutil.copy(REPO / "scripts/install.sh", self.repo / "scripts/install.sh")
+        (self.repo / "agents").mkdir()
+        (self.repo / "agents/helper.md").write_text("Agent\n", encoding="utf-8")
+        (self.repo / "AGENTS.md").write_text("Global\n", encoding="utf-8")
+        for name in ("alpha", "beta"):
+            (self.repo / "skills" / name).mkdir(parents=True)
+            (self.repo / "skills" / name / "SKILL.md").write_text("Skill\n", encoding="utf-8")
+        self.skills = self.repo / "skills"
+        self.env = dict(os.environ, HOME=str(self.home))
+
+    def install(self, *args: str, check=True) -> subprocess.CompletedProcess:
+        result = subprocess.run(
+            ["bash", str(self.repo / "scripts/install.sh"), "--no-statusline",
+             "--no-attribution", "--no-hermes", *args],
+            env=self.env, cwd=self.repo, text=True, capture_output=True, timeout=30,
+        )
+        if check:
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def test_every_target_gets_real_directory_with_one_link_per_skill(self) -> None:
+        self.install()
+        for target in SKILL_TARGETS:
+            directory = self.home / target
+            with self.subTest(target=target):
+                self.assertTrue(directory.is_dir() and not directory.is_symlink())
+                self.assertEqual(sorted(p.name for p in directory.iterdir()), ["alpha", "beta"])
+                self.assertEqual((directory / "alpha").resolve(), (self.skills / "alpha").resolve())
+
+    def test_entry_without_skill_file_is_never_linked(self) -> None:
+        (self.skills / "synced").mkdir()
+        (self.skills / "synced/manifest.json").write_text("{}\n", encoding="utf-8")
+        self.install()
+        for target in SKILL_TARGETS:
+            self.assertFalse((self.home / target / "synced").exists(), target)
+
+    def test_whole_directory_link_from_older_install_is_migrated(self) -> None:
+        link = self.home / ".claude/skills"
+        link.parent.mkdir()
+        link.symlink_to(self.skills, target_is_directory=True)
+        self.install()
+        self.assertTrue(link.is_dir() and not link.is_symlink())
+        self.assertEqual(sorted(p.name for p in link.iterdir()), ["alpha", "beta"])
+        # A skill the tool writes itself stays out of the repository.
+        (link / "vendored").mkdir()
+        self.assertFalse((self.skills / "vendored").exists())
+
+    def test_foreign_directory_link_needs_force(self) -> None:
+        elsewhere = self.home / "elsewhere"
+        elsewhere.mkdir()
+        link = self.home / ".cursor/skills"
+        link.parent.mkdir()
+        link.symlink_to(elsewhere, target_is_directory=True)
+        result = self.install()
+        self.assertIn("use --force", result.stderr)
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(list(elsewhere.iterdir()), [])
+        self.install("--force")
+        self.assertTrue(link.is_dir() and not link.is_symlink())
+        self.assertEqual(list(elsewhere.iterdir()), [])
+
+    def test_dry_run_leaves_whole_directory_link_alone(self) -> None:
+        link = self.home / ".claude/skills"
+        link.parent.mkdir()
+        link.symlink_to(self.skills, target_is_directory=True)
+        result = self.install("--dry-run")
+        self.assertIn("would link each skill into", result.stdout)
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(sorted(p.name for p in self.skills.iterdir()), ["alpha", "beta"])
+
+    def test_existing_tool_skills_survive_and_stale_links_are_reported(self) -> None:
+        directory = self.home / ".codex/skills"
+        (directory / ".system").mkdir(parents=True)
+        (directory / "gone").symlink_to(self.skills / "gone")
+        result = self.install()
+        self.assertTrue((directory / ".system").is_dir())
+        self.assertTrue((directory / "gone").is_symlink())
+        self.assertIn("stale: gone", result.stderr)
+
+    def test_reinstall_reports_already_linked(self) -> None:
+        self.install()
+        result = self.install()
+        self.assertIn("already linked", result.stdout)
+        self.assertNotIn("linked: ", result.stdout.replace("already linked", ""))
+
+
 if __name__ == "__main__":
     unittest.main()

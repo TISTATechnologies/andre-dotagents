@@ -81,20 +81,21 @@ cd ~/.agents
 python .ci_scripts/validate_skills.py skills
 ```
 
-The Windows installer links the same way without requiring administrator rights or Developer Mode: directory junctions for `skills/` and per-skill targets, and hard links (or a hash-checked copy, when the clone and home directory are on different drives) for single files.
+The Windows installer links the same way without requiring administrator rights or Developer Mode: directory junctions for each skill, and hard links (or a hash-checked copy, when the clone and home directory are on different drives) for single files.
 See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for full details including troubleshooting.
 
 Use `just --list` to see every recipe.
 
 ## Installation Layout
 
-`just install` creates four kinds of link, because the agent tools disagree about what a skills directory is and about where global instructions live.
+`just install` creates three kinds of link, because the agent tools disagree about what a skills directory is and about where global instructions live.
 
-- Whole-directory links, one symlink pointing at `skills/`: `~/.claude/skills`, `~/.cursor/skills`, `~/.gemini/config/skills`, and `~/.copilot/skills`.
 - Per-agent links, one symlink per agent file inside `~/.claude/agents`.
   Only Claude Code reads this file format, so only its directory receives them, and linking file by file leaves any agent already sitting there untouched.
   Anything in that directory this repository does not provide is reported at the end of the run and never removed, so a renamed agent's dangling link is visible without putting your own agents at risk.
-- Per-skill links, one symlink per skill inside a directory the tool manages itself: `~/.codex/skills` and `~/.grok/skills`.
+- Per-skill links, one symlink per skill inside a real directory the tool manages itself: `~/.claude/skills`, `~/.cursor/skills`, `~/.gemini/config/skills`, `~/.copilot/skills`, `~/.codex/skills`, and `~/.grok/skills`.
+  A tool can write its own skills next to yours (Claude Code syncs vendored ones into `~/.claude/skills`), and a symlink to `skills/` as a whole would land that content in this repository.
+  An older install that linked `skills/` as a whole is migrated to a real directory, a `skills/` entry without a `SKILL.md` is never linked, and a link to a skill that no longer exists is reported and left in place.
 - Instruction-file links, one symlink pointing at `AGENTS.md`: `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.cursor/rules/AGENTS.md`, `~/.gemini/GEMINI.md`, and `~/.grok/AGENTS.md`.
   The Gemini link uses that tool's own filename, which is what it reads by default.
 
@@ -191,7 +192,7 @@ The `name` must match the directory.
 The `description` opens with one short line saying what the skill is for, and adds a single "Use this skill when ..." sentence only when the model may invoke it on its own.
 
 Read [Skill Authoring Standards](docs/docs_standards/skill_authoring.md) first, then run `just ci`.
-No new symlink is needed for a whole-directory target; run `just install` again to link a new skill into the per-skill targets.
+Run `just install` again to link the new skill into every tool's skills directory.
 
 ## Adding an Agent
 

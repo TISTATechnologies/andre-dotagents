@@ -11,15 +11,17 @@
 # Existing Hermes setups scan skills/ via skills.external_dirs; --no-hermes
 # skips registration without replacing Hermes-owned skills or identity.
 #
-# Two link styles are needed for the skills because the tools disagree about
-# what a skills directory is:
-#   - directory targets get one symlink pointing at skills/ as a whole.
-#   - per-skill targets get one symlink per skill directory inside their own
-#     skills directory, so tool-managed siblings are left in place.
+# Skills are linked one directory at a time into a real skills directory that
+# each tool owns. A tool can write its own skills next to ours (Claude Code
+# syncs vendored ones into ~/.claude/skills), and a symlink to skills/ as a
+# whole would land that content in this repository. An older install that
+# linked skills/ as a whole is migrated to a real directory. A skills/ entry
+# without a SKILL.md is not a skill and is never linked. Links to skills that
+# no longer exist are reported rather than removed.
 #
-# The agents are linked one file at a time for the same reason a per-skill
-# target is: ~/.claude/agents is usually a real directory that already holds
-# agents Claude Code or the user put there, and a link_one on the directory
+# The agents are linked one file at a time for the same reason:
+# ~/.claude/agents is usually a real directory that already holds agents
+# Claude Code or the user put there, and a link_one on the directory
 # itself would refuse to touch it and install nothing. Linking file by file
 # cannot clean up after itself, so anything else found in that directory,
 # including a link left dangling by a renamed agent, is reported rather than
@@ -47,14 +49,6 @@ no_statusline=0
 no_attribution=0
 no_hermes=0
 
-# Targets that receive a single symlink to the whole skills/ directory.
-directory_targets=(
-    "${HOME}/.claude/skills"
-    "${HOME}/.cursor/skills"
-    "${HOME}/.gemini/config/skills"
-    "${HOME}/.copilot/skills"
-)
-
 # Targets that receive one symlink per agent file. Only Claude Code reads this
 # file format today, so only its agents directory is linked.
 per_agent_targets=(
@@ -63,6 +57,10 @@ per_agent_targets=(
 
 # Targets that receive one symlink per skill directory.
 per_skill_targets=(
+    "${HOME}/.claude/skills"
+    "${HOME}/.cursor/skills"
+    "${HOME}/.gemini/config/skills"
+    "${HOME}/.copilot/skills"
     "${HOME}/.codex/skills"
     "${HOME}/.grok/skills"
 )
@@ -186,20 +184,76 @@ link_one() {
     fi
 }
 
-echo "Source: ${skills_dir}"
+# prepare_skill_target <target_dir>
+# Make the target a real directory. A symlink to this repository's skills/ is
+# the layout an older install created, so it is replaced without --force. A
+# symlink anywhere else is the user's own and needs --force. Returns non-zero
+# when the target must be left alone.
+prepare_skill_target() {
+    local target="$1"
 
-echo "Directory targets:"
-for target in "${directory_targets[@]}"; do
-    link_one "$skills_dir" "$target"
-done
-
-echo "Per-skill targets:"
-for target in "${per_skill_targets[@]}"; do
+    if [ -L "$target" ]; then
+        if [ "$(readlink -f "$target")" = "$(readlink -f "$skills_dir")" ]; then
+            echo "  migrate: ${target} links the whole skills directory; replacing it with a real directory"
+        elif [ "$force" -eq 1 ]; then
+            echo "  migrate: ${target} points at $(readlink "$target"); replacing it with a real directory"
+        else
+            echo "  skip: ${target} points at $(readlink "$target") (use --force to replace)" >&2
+            return 1
+        fi
+        run rm -f "$target"
+    elif [ -e "$target" ] && [ ! -d "$target" ]; then
+        echo "  skip: ${target} exists and is not a directory" >&2
+        return 1
+    fi
     [ -d "$target" ] || run mkdir -p "$target"
+}
+
+# report_stale_skills <target_dir>
+# Report links in the target that point into skills/ at a skill that no longer
+# exists, and remove nothing.
+report_stale_skills() {
+    local target_dir="$1" entry
+    local -a stale=()
+
+    [ -d "$target_dir" ] || return 0
+    for entry in "$target_dir"/*; do
+        [ -L "$entry" ] && [ ! -e "$entry" ] || continue
+        case "$(readlink "$entry")" in
+            "$skills_dir"/*) stale+=("$(basename "$entry") -> $(readlink "$entry")") ;;
+        esac
+    done
+
+    if [ "${#stale[@]}" -gt 0 ]; then
+        echo "  note: broken link(s) in ${target_dir}, left in place for you to remove:" >&2
+        for entry in "${stale[@]}"; do
+            echo "    stale: ${entry}" >&2
+        done
+    fi
+}
+
+# link_skills <target_dir>
+link_skills() {
+    local target="$1" skill_path skill_name
+
+    prepare_skill_target "$target" || return 0
+    if [ "$dry_run" -eq 1 ] && [ -L "$target" ]; then
+        echo "  would link each skill into ${target}"
+        return 0
+    fi
     for skill_path in "$skills_dir"/*/; do
+        [ -f "${skill_path}SKILL.md" ] || continue
         skill_name="$(basename "$skill_path")"
         link_one "${skills_dir}/${skill_name}" "${target}/${skill_name}"
     done
+    report_stale_skills "$target"
+}
+
+echo "Source: ${skills_dir}"
+
+echo "Skill targets:"
+for target in "${per_skill_targets[@]}"; do
+    link_skills "$target"
 done
 
 echo "Claude agents:"

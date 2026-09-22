@@ -13,6 +13,11 @@
       - Directory targets use a junction (mklink /J equivalent). Junctions need
         no elevation and can point across local volumes, so editing a file in
         this clone still changes what every tool reads.
+      - Skills get one junction per skill inside a real directory each tool
+        owns, so a skill a tool writes there itself never lands in this clone.
+        An older install that linked skills/ as a whole is migrated to a real
+        directory, a skills/ entry without a SKILL.md is never linked, and a
+        link to a skill that no longer exists is reported and left in place.
       - Single-file targets use a hard link on the same volume, which also needs
         no elevation. When the clone and the home directory are on different
         volumes (a hard link is impossible there) the file is copied instead.
@@ -263,6 +268,65 @@ function Report-ExtraAgents {
     }
 }
 
+# Prepare-SkillTarget <target-dir>
+# Make the target a real directory and return 'ready', 'dry-migrate' (a dry run
+# that would replace a link, so the directory does not exist yet), or 'skip'.
+# A link to this repository's skills/ is the layout an older install created,
+# so it is replaced without -Force. A link anywhere else needs -Force.
+function Prepare-SkillTarget {
+    param([Parameter(Mandatory)][string]$TargetDir)
+    $target = Expand-Home $TargetDir
+    $migrating = $false
+
+    if (Test-Path -LiteralPath $target) {
+        $item = Get-Item -LiteralPath $target -Force
+        $existing = Get-LinkTarget $item
+        if ($existing) {
+            if ($existing -ieq (Resolve-Full $skillsDir)) {
+                Write-Detail "migrate: $target links the whole skills directory; replacing it with a real directory"
+            } elseif ($Force) {
+                Write-Detail "migrate: $target points at $existing; replacing it with a real directory"
+            } else {
+                Write-Detail "skip: $target points at $existing (use -Force to replace)"
+                return 'skip'
+            }
+            if ($DryRun) { return 'dry-migrate' }
+            # Remove the reparse point without touching the target contents.
+            $item.Delete()
+            $migrating = $true
+        } elseif (-not $item.PSIsContainer) {
+            Write-Detail "skip: $target exists and is not a directory"
+            return 'skip'
+        }
+    }
+
+    if ($migrating -or -not (Test-Path -LiteralPath $target)) {
+        if ($DryRun) {
+            Write-Detail "would create directory: $target"
+        } else {
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+        }
+    }
+    return 'ready'
+}
+
+# Report links in a skills directory that point into skills/ at a skill that
+# no longer exists, removing nothing.
+function Report-StaleSkills {
+    param([Parameter(Mandatory)][string]$TargetDir)
+    $target = Expand-Home $TargetDir
+    if (-not (Test-Path -LiteralPath $target)) { return }
+    $source = Resolve-Full $skillsDir
+
+    foreach ($entry in Get-ChildItem -LiteralPath $target -Force) {
+        $linkTarget = Get-LinkTarget $entry
+        if ($linkTarget -and $linkTarget.StartsWith($source, [System.StringComparison]::OrdinalIgnoreCase) -and
+            -not (Test-Path -LiteralPath $linkTarget)) {
+            Write-Detail "note: broken link left in place: $($entry.Name) -> $linkTarget"
+        }
+    }
+}
+
 # Serialize a JSON object stably for before/after comparison.
 function ConvertTo-Stable {
     param($Object)
@@ -485,16 +549,12 @@ $codexConfig = Expand-Home '~/.codex/config.toml'
 $claudeStatuslineCommand = "pwsh -NoProfile -File `"$(Expand-Home $claudeStatuslineLink)`""
 $cursorStatuslineCommand = "pwsh -NoProfile -File `"$(Expand-Home $cursorStatuslineLink)`""
 
-# Whole-directory targets: one junction to skills/.
-$directoryTargets = @(
+# Per-skill targets: one junction per skill directory.
+$perSkillTargets = @(
     '~/.claude/skills'
     '~/.cursor/skills'
     '~/.gemini/config/skills'
     '~/.copilot/skills'
-)
-
-# Per-skill targets: one junction per skill directory.
-$perSkillTargets = @(
     '~/.codex/skills'
     '~/.grok/skills'
 )
@@ -518,17 +578,20 @@ $instructionTargets = @(
 Write-Host "Source: $skillsDir"
 if ($DryRun) { Write-Host '(dry run: nothing will be changed)' }
 
-Write-Step 'Directory targets:'
-foreach ($target in $directoryTargets) {
-    Install-DirLink $skillsDir $target
-}
-
-Write-Step 'Per-skill targets:'
-$skillDirs = Get-ChildItem -LiteralPath $skillsDir -Directory
+Write-Step 'Skill targets:'
+$skillDirs = Get-ChildItem -LiteralPath $skillsDir -Directory |
+    Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf }
 foreach ($target in $perSkillTargets) {
+    $state = Prepare-SkillTarget $target
+    if ($state -eq 'skip') { continue }
+    if ($state -eq 'dry-migrate') {
+        Write-Detail "would link each skill into $target"
+        continue
+    }
     foreach ($skill in $skillDirs) {
         Install-DirLink $skill.FullName "$target/$($skill.Name)"
     }
+    Report-StaleSkills $target
 }
 
 Write-Step 'Claude agents:'

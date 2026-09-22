@@ -28,7 +28,8 @@ The installer requires PowerShell 7, and the installed status line commands also
 The Unix installer uses symbolic links, which on Windows require administrator rights or Developer Mode.
 To avoid that, `install.ps1` picks a link type that needs neither:
 
-- **Directory targets** (the whole `skills/` directory, and each per-skill directory) use a **junction**.
+- **Skill directories** (each skill, linked into a real skills directory that each tool owns) use a **junction**.
+  An older install that linked the whole `skills/` directory is migrated to a real directory, so skills a tool writes itself never land in the clone.
   Junctions need no elevation and can point across local drives, so editing a file in the clone still changes what every tool reads.
 - **Single-file targets** (each agent file, `AGENTS.md`, the status line scripts) use a **hard link** when the clone and your home directory are on the same drive.
   Hard links also need no elevation and stay in sync with the source.
