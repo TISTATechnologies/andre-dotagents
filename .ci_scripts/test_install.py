@@ -195,7 +195,9 @@ else:
         self.install()
         self.assertEqual(json.loads(config.read_text())["skills"]["external_dirs"],
                          ["skills", str(REPO / "skills")])
-        relative = os.path.relpath(REPO / "skills", config.parent)
+        # ".." follows the physical path, so relate to the resolved home
+        # (macOS temp dirs sit under the /var -> /private/var symlink).
+        relative = os.path.relpath(REPO / "skills", config.parent.resolve())
         config.write_text(json.dumps({"skills": {"external_dirs": [" " + relative + " "]}}))
         before = config.read_bytes()
         backups = self.backups(config)

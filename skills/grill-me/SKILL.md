@@ -7,7 +7,7 @@ user-invocable: true
 
 Grill me with questions one at a time with options and recommendations until we have a shared common understanding.
 
-Rules:
+## Rules
 
 - Do not use the ask/question tool; **ask in thread**.
 - Distinguish each option with a selectable letter.

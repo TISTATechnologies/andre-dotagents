@@ -16,6 +16,7 @@
     ".markdownlint-rules/one-sentence-per-line.js"
   ],
   "ignores": [
+    ".claude/**",
     ".git/**",
     ".github/**",
     ".markdownlint-repo/**",

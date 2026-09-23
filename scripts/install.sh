@@ -218,7 +218,9 @@ report_stale_skills() {
 
     [ -d "$target_dir" ] || return 0
     for entry in "$target_dir"/*; do
-        [ -L "$entry" ] && [ ! -e "$entry" ] || continue
+        if [ ! -L "$entry" ] || [ -e "$entry" ]; then
+            continue
+        fi
         case "$(readlink "$entry")" in
             "$skills_dir"/*) stale+=("$(basename "$entry") -> $(readlink "$entry")") ;;
         esac

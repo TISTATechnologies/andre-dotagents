@@ -122,7 +122,7 @@ Aggressively validate:
 - Improper WaitGroup usage
 - Unsafe shared memory access
 
-Require:
+#### Required Concurrency Patterns
 
 - Structured concurrency patterns
 - Explicit shutdown handling
@@ -153,7 +153,7 @@ Require:
 
 ### Architecture Review
 
-Detect:
+#### Detect
 
 - Anemic domain models
 - Fat handlers
@@ -162,7 +162,7 @@ Detect:
 - Improper DTO <=> domain mixing
 - Global mutable state
 
-Require:
+#### Required Architecture Practices
 
 - Explicit dependency injection
 - Constructor-based initialization
@@ -178,7 +178,7 @@ For REST/gRPC services:
 - Ensure backward compatibility
 - Detect breaking changes
 
-For JSON:
+#### JSON Payloads
 
 - Explicit struct tags
 - No accidental field exposure
@@ -207,7 +207,7 @@ When the change touches a database or persistence layer, apply [Database and Per
 
 ### Performance Review
 
-Identify:
+#### Identify
 
 - Excessive allocations
 - Unnecessary pointer usage
@@ -216,7 +216,7 @@ Identify:
 - Missing buffer reuse
 - Incorrect sync primitives
 
-Recommend:
+#### Recommend
 
 - `pprof` validation
 - Benchmark tests for critical paths
@@ -235,7 +235,7 @@ Mandatory checks:
 - Validate TLS usage for external calls
 - Enforce least-privilege DB access
 
-Run:
+#### Run
 
 - `govulncheck`
 - Dependency audit
@@ -243,7 +243,7 @@ Run:
 
 ## Logging and Observability
 
-Require:
+### Required Logging Practices
 
 - Structured logging (slog or equivalent)
 - No fmt.Println in production

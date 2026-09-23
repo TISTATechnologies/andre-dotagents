@@ -83,7 +83,7 @@ Session names are arbitrary and drift, so identify a role from the pane title or
 - Logger: keeps the team task-state log and relays routine status.
   Runs on a smaller model and never argues substance.
 
-Handoff:
+### Handoff
 
 - Prefer the agent's native cross-session messaging where it exists (Claude Code's `SendMessage`, with `ListAgents` to find names).
   Silence is not receipt; confirm delivery when it matters.
