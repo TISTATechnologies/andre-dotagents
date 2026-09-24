@@ -1,0 +1,145 @@
+# Bring this fork's main up to date with the parent repository's main, then
+# rebase tista-main onto it, so the TISTA default branch is every upstream
+# change followed by its own TISTA-only commits.
+# Not paired with GitLab: it reads the parent through GitHub's API and pushes
+# to this GitHub fork.
+#
+# Triggers: a daily run and on-demand runs. Schedules fire only from the
+# default branch, and this file lives on tista-main, so tista-main must be the
+# default for it to run.
+#
+# It replaces the parent's "Sync fork" workflow, which is disabled on this
+# fork: that one syncs main with GITHUB_TOKEN, which GitHub refuses whenever an
+# upstream commit changes a workflow file. This one pushes over SSH with a
+# write-enabled deploy key whose private half is the SYNC_DEPLOY_KEY secret,
+# and pins GitHub's published host key rather than trusting the first one seen.
+#
+# main only ever fast-forwards to the parent's main; when this fork's main has
+# commits the parent lacks, the run fails without pushing. Both branches go in
+# one atomic push, each forced with a lease, so a push made while this runs is
+# never overwritten; the run fails instead. A rebase conflict fails the run
+# without pushing anything. Resolve it by rebasing tista-main onto main locally
+# and force-pushing the result.
+
+name: Sync tista-main
+
+on:
+  schedule:
+    - cron: "53 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-tista-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync main and rebase tista-main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: tista-main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Rebase onto the parent's main
+        id: rebase
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898237+github-actions[bot]@users.noreply.github.com"
+          parent=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.parent.full_name // empty')
+          if [ -z "$parent" ]; then
+            echo "::error::${GITHUB_REPOSITORY} is not a fork, so there is no parent to sync from."
+            exit 1
+          fi
+          git fetch --no-tags "https://github.com/${parent}.git" main
+          upstream=$(git rev-parse FETCH_HEAD)
+          git fetch origin main tista-main
+          main_before=$(git rev-parse origin/main)
+          tista_before=$(git rev-parse origin/tista-main)
+          {
+            echo "upstream=${upstream}"
+            echo "main_before=${main_before}"
+            echo "tista_before=${tista_before}"
+          } >> "$GITHUB_OUTPUT"
+
+          if ! git merge-base --is-ancestor "$main_before" "$upstream"; then
+            echo "This fork's main has commits that ${parent} main does not. Nothing was pushed." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::main has diverged from ${parent} main; see the job summary."
+            exit 1
+          fi
+          if [ "$main_before" != "$upstream" ]; then
+            echo "update_main=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if git merge-base --is-ancestor "$upstream" HEAD; then
+            exit 0
+          fi
+          if ! git rebase "$upstream"; then
+            {
+              echo "Rebasing tista-main onto main conflicts in:"
+              git diff --name-only --diff-filter=U | sed 's/^/- /'
+              echo
+              echo "Nothing was pushed. Rebase tista-main onto main locally, resolve, and force-push."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            git rebase --abort
+            echo "::error::Rebase conflict between main and tista-main; see the job summary."
+            exit 1
+          fi
+          echo "update_tista=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push main and tista-main
+        env:
+          SYNC_DEPLOY_KEY: ${{ secrets.SYNC_DEPLOY_KEY }}
+          UPSTREAM: ${{ steps.rebase.outputs.upstream }}
+          MAIN_BEFORE: ${{ steps.rebase.outputs.main_before }}
+          TISTA_BEFORE: ${{ steps.rebase.outputs.tista_before }}
+          UPDATE_MAIN: ${{ steps.rebase.outputs.update_main }}
+          UPDATE_TISTA: ${{ steps.rebase.outputs.update_tista }}
+        run: |
+          if [ -z "$SYNC_DEPLOY_KEY" ]; then
+            echo "::error::Set the SYNC_DEPLOY_KEY secret to the private half of a write-enabled deploy key."
+            exit 1
+          fi
+          key_file="${RUNNER_TEMP}/sync_deploy_key"
+          known_hosts="${RUNNER_TEMP}/known_hosts"
+          trap 'rm -f "$key_file"' EXIT
+          (umask 077 && printf '%s\n' "$SYNC_DEPLOY_KEY" | sed '/^[[:space:]]*$/d' > "$key_file")
+          # GitHub's published ed25519 host key (gh api meta --jq .ssh_keys).
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" \
+            > "$known_hosts"
+          export GIT_SSH_COMMAND="ssh -i ${key_file} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${known_hosts}"
+          remote="git@github.com:${GITHUB_REPOSITORY}.git"
+
+          leases=()
+          refspecs=()
+          if [ "$UPDATE_MAIN" = "true" ]; then
+            leases+=("--force-with-lease=main:${MAIN_BEFORE}")
+            refspecs+=("${UPSTREAM}:refs/heads/main")
+          fi
+          if [ "$UPDATE_TISTA" = "true" ]; then
+            leases+=("--force-with-lease=tista-main:${TISTA_BEFORE}")
+            refspecs+=("HEAD:refs/heads/tista-main")
+          fi
+
+          if [ ${#refspecs[@]} -eq 0 ]; then
+            # Nothing to push; a dry run still proves the key has write access.
+            git push --dry-run "$remote" HEAD:refs/heads/tista-main
+            echo "main and tista-main are already based on the parent's main ${UPSTREAM:0:7}; nothing to push." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git push --atomic "${leases[@]}" "$remote" "${refspecs[@]}"
+          if [ "$UPDATE_MAIN" = "true" ]; then
+            echo "Fast-forwarded main to ${UPSTREAM:0:7} (was ${MAIN_BEFORE:0:7})." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$UPDATE_TISTA" = "true" ]; then
+            echo "Rebased tista-main onto ${UPSTREAM:0:7} (was ${TISTA_BEFORE:0:7})." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
