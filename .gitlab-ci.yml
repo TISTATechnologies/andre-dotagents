@@ -1,36 +1,54 @@
 # Paired with .github/workflows/ci.yml - keep the two in sync when either
-# changes (checks run, tool versions, trigger scope).
+# changes (checks run, container images, trigger scope). Every job calls the
+# justfile recipes that `just ci` runs, in an upstream image pinned to the
+# newest stable release line, as the GitHub jobs do. The PowerShell tests run
+# in the Linux PowerShell image instead of on Windows; Microsoft publishes no
+# image newer than 7.5, and the Windows-only junction test is covered by
+# GitHub.
 
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
 
 stages:
   - check
 
 check:skills:
   stage: check
-  image: python:3.13-slim
+  image: python:3.14-slim-trixie
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends ca-certificates git jq just
+    - pip install --root-user-action=ignore --no-cache-dir skills-ref==0.1.1
   script:
-    - python3 .ci_scripts/validate_skills.py skills
-    - python3 .ci_scripts/validate_agents.py agents skills
-    - python3 .ci_scripts/validate_doc_links.py .
-    - cd .ci_scripts && python3 -m unittest discover -p 'test_*.py'
+    - just validate-skills validate-skills-spec validate-agents validate-doc-links test-python
 
 check:docs:
   stage: check
-  image: node:22-slim
+  image: node:24-trixie-slim
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends git
-    - npm install -g markdownlint-cli2
-    - git clone --depth 1 https://github.com/cypher0n3/docs-as-code-tools.git .markdownlint-repo
-    - ln -sfn .markdownlint-repo/markdownlint-rules .markdownlint-rules
+    - apt-get update && apt-get install -y --no-install-recommends ca-certificates git just
+    - npm install -g markdownlint-cli2@0.23.3
+    - just install-markdownlint
   script:
-    - markdownlint-cli2 '**/*.md'
+    # lint-md applies fixes, so fail when it had anything to fix.
+    - just lint-md
+    - git diff --exit-code
 
 check:shell:
   stage: check
-  image: koalaman/shellcheck-alpine:stable
+  image: koalaman/shellcheck-alpine:v0.11.0
+  before_script:
+    - apk add --no-cache bash just
   script:
-    - shellcheck scripts/*.sh claude/*.sh cursor/*.sh
+    - shellcheck --version
+    - just lint-sh
+
+check:powershell:
+  stage: check
+  image: mcr.microsoft.com/powershell:7.5-ubuntu-24.04
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends python3 just
+  script:
+    - pwsh --version
+    - just test-powershell

@@ -1,52 +1,87 @@
 # Paired with .gitlab-ci.yml - keep the two in sync when either changes
-# (checks run, tool versions, trigger scope).
+# (checks run, container images, trigger scope).
+#
+# Every job calls the justfile recipes that `just ci` runs, so CI and the
+# local gate cannot drift apart. The Linux jobs run in the same upstream
+# images as their GitLab counterparts, pinned to the newest stable release
+# line (Python 3.14 and Node 24 LTS on Debian trixie, ShellCheck 0.11.0),
+# rather than the older tools the Ubuntu runner ships. The PowerShell
+# installer tests run on a Windows runner, which ships PowerShell 7 and is
+# the only place the junction-migration test can run. Bump the pins, the
+# markdownlint-cli2 version, and the action majors together when a newer
+# stable release lands.
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   skills:
-    name: Validate skills, agents, and links
+    name: Validate skills, agents, and links; run Python tests
     runs-on: ubuntu-latest
+    container: python:3.14-slim-trixie
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install just and test dependencies
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates git jq just
+      - uses: actions/checkout@v7
         with:
-          python-version: "3.13"
-      - name: Validate skill definitions
-        run: python3 .ci_scripts/validate_skills.py skills
-      - name: Validate agent definitions
-        run: python3 .ci_scripts/validate_agents.py agents skills
-      - name: Validate documentation links
-        run: python3 .ci_scripts/validate_doc_links.py .
-      - name: Run CI script unit tests
-        run: cd .ci_scripts && python3 -m unittest discover -p 'test_*.py'
+          persist-credentials: false
+      - name: Install the Agent Skills reference validator
+        run: pip install --root-user-action=ignore --no-cache-dir skills-ref==0.1.1
+      - name: Validate and test
+        run: just validate-skills validate-skills-spec validate-agents validate-doc-links test-python
 
   docs:
     name: Lint Markdown
     runs-on: ubuntu-latest
+    container: node:24-trixie-slim
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Install just and git
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates git just
+      - uses: actions/checkout@v7
         with:
-          node-version: "22"
-      - name: Install markdownlint-cli2
-        run: npm install -g markdownlint-cli2
-      - name: Install custom markdownlint rules
+          persist-credentials: false
+      - name: Install markdownlint-cli2 and custom rules
         run: |
-          git clone --depth 1 https://github.com/cypher0n3/docs-as-code-tools.git .markdownlint-repo
-          ln -sfn .markdownlint-repo/markdownlint-rules .markdownlint-rules
+          npm install -g markdownlint-cli2@0.23.3
+          just install-markdownlint
+      # lint-md applies fixes, so fail when it had anything to fix.
       - name: Lint Markdown
-        run: markdownlint-cli2 '**/*.md'
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          just lint-md
+          git diff --exit-code
 
   shell:
     name: Lint shell scripts
     runs-on: ubuntu-latest
+    container: koalaman/shellcheck-alpine:v0.11.0
     steps:
-      - uses: actions/checkout@v4
+      - name: Install just and bash
+        run: apk add --no-cache bash just
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Run shellcheck
-        run: shellcheck scripts/*.sh claude/*.sh cursor/*.sh
+        run: shellcheck --version && just lint-sh
+
+  powershell:
+    name: PowerShell installer tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: extractions/setup-just@v4
+      - name: Run PowerShell installer tests
+        run: pwsh --version && just test-powershell
+        shell: bash

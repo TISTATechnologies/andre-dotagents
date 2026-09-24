@@ -4,10 +4,6 @@
 # (justfile: not a shell script; recipe bodies are run by just with set shell)
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
-set tempdir := "/tmp"
-
-export JUST_TEMPDIR := env_var_or_default("JUST_TEMPDIR", "/tmp")
-export NPM_CONFIG_CACHE := env_var_or_default("NPM_CONFIG_CACHE", "/tmp/agents-npm-cache")
 
 # Directory containing this justfile (repository root).
 root_dir := justfile_directory()
@@ -21,7 +17,7 @@ setup: install-markdownlint
     @echo "Setup complete. Run: just ci"
 
 # Local CI: everything that gates a merge in this repository.
-ci: docs-check validate-skills validate-agents validate-skills-spec test-python lint-sh
+ci: docs-check validate-skills validate-agents validate-skills-spec test-python test-powershell lint-sh
     @:
 
 # All documentation checks: Markdown lint plus internal link validation.
@@ -73,41 +69,43 @@ validate-skills:
 validate-agents:
     @python3 "{{ root_dir }}/.ci_scripts/validate_agents.py" "{{ root_dir }}/agents" "{{ root_dir }}/skills"
 
-# Validate skills against the Agent Skills spec (skills-ref). Skipped when skills-ref is absent.
+# Validate skills with the Agent Skills reference validator (skills-ref). Skipped locally, and an error under CI, when it is absent.
 validate-skills-spec:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd "{{ root_dir }}"
-    if ! command -v skills-ref >/dev/null 2>&1; then
-        echo "skills-ref not installed; skipping specification validation."
-        echo "See https://github.com/agentskills/agentskills for the reference library."
-        exit 0
-    fi
-    status=0
-    for skill in skills/*/; do
-        skills-ref validate "$skill" || status=1
-    done
-    exit "$status"
+    @python3 "{{ root_dir }}/.ci_scripts/validate_skills_spec.py" "{{ root_dir }}/skills"
 
 # Validate relative Markdown links and heading anchors across the repository.
 validate-doc-links:
     @python3 "{{ root_dir }}/.ci_scripts/validate_doc_links.py" "{{ root_dir }}"
 
-# Run the offline Python unit tests for the CI helper scripts.
+# Run the offline Python unit tests for the CI helper scripts, except the PowerShell installer tests (see test-powershell).
 test-python:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{ root_dir }}/.ci_scripts"
-    python3 -m unittest discover -p 'test_*.py'
+    modules=()
+    for test in test_*.py; do
+        [ "$test" = test_install_powershell.py ] || modules+=("${test%.py}")
+    done
+    python3 -m unittest "${modules[@]}"
 
-# Run the PowerShell installer tests: with local pwsh when present, else in a PowerShell container (podman, then docker).
+# Run the PowerShell installer tests with the local pwsh. Skipped with a notice when pwsh is absent.
 test-powershell:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{ root_dir }}"
-    if command -v pwsh >/dev/null 2>&1; then
-        exec python3 .ci_scripts/test_install_powershell.py -v
+    if ! command -v pwsh >/dev/null 2>&1; then
+        echo "pwsh not installed; skipping PowerShell installer tests."
+        echo "Run: just test-powershell-container"
+        exit 0
     fi
+    python=$(command -v python3 || command -v python)
+    exec "$python" .ci_scripts/test_install_powershell.py -v
+
+# Run the PowerShell installer tests in a PowerShell container (podman, then docker), for machines without pwsh.
+test-powershell-container:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ root_dir }}"
     engine=""
     for candidate in podman docker; do
         if command -v "$candidate" >/dev/null 2>&1; then
@@ -116,11 +114,11 @@ test-powershell:
         fi
     done
     if [ -z "$engine" ]; then
-        echo "Error: install PowerShell 7 (pwsh), podman, or docker to run the PowerShell tests." >&2
+        echo "Error: install podman or docker to run the PowerShell tests in a container." >&2
         exit 1
     fi
     image="dotagents-pwsh-tests:7.5"
-    echo "pwsh not found; running the PowerShell tests in ${image} with ${engine}."
+    echo "Running the PowerShell tests in ${image} with ${engine}."
     "$engine" build --quiet --file .ci_scripts/powershell.Containerfile --tag "$image" .ci_scripts
     exec "$engine" run --rm \
         --volume "{{ root_dir }}:/repo:ro,z" \

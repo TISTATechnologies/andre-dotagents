@@ -108,5 +108,5 @@ Run the full local gate before committing a skill change.
 
 - `just validate-skills` checks frontmatter, naming, and agent manifests.
 - `just lint-md skills/<skill-name>/SKILL.md` applies Markdown fixes and reports what it cannot fix.
-- `just validate-skills-spec` runs the upstream [skills-ref](https://github.com/agentskills/agentskills) validator when it is installed, and skips with a notice when it is not.
+- `just validate-skills-spec` runs the upstream [skills-ref](https://github.com/agentskills/agentskills) validator, accepting the client fields `validate-skills` allows; it skips with a notice when the validator is not installed, and fails in CI.
 - `just ci` runs every check that CI runs.

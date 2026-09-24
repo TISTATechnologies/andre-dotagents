@@ -55,7 +55,9 @@ class PowerShellInstallerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="dotagents-pwsh-")
         self.addCleanup(self.temp.cleanup)
-        self.home = Path(self.temp.name) / "home with spaces"
+        # Resolve so expected paths match what the installer reports; Windows
+        # runners hand out 8.3 short temp paths such as RUNNER~1.
+        self.home = Path(self.temp.name).resolve() / "home with spaces"
         self.home.mkdir()
         # Junction creation is Windows-only. Existing real directories are
         # deliberately skipped, so the full installer also runs safely on Unix.
@@ -150,11 +152,14 @@ class PowerShellInstallerTests(unittest.TestCase):
         self.assertEqual(sum(c["args"][1] == "set" for c in self.hermes_calls()), 1)
 
     def test_hermes_equivalent_paths_preserve_original_list_without_backup(self):
-        relative = os.path.relpath(REPO / "skills", self.home / ".hermes")
-        home_relative = os.path.relpath(REPO / "skills", self.home)
         equivalents = [str(REPO / "skills"), str(REPO / "skills") + "/../skills/",
-                       relative, "~/" + home_relative, "$DOTAGENTS_REPO/skills",
-                       "${DOTAGENTS_REPO}/skills", " \t" + str(REPO / "skills") + " \t"]
+                       "$DOTAGENTS_REPO/skills", "${DOTAGENTS_REPO}/skills",
+                       " \t" + str(REPO / "skills") + " \t"]
+        # No relative path spans two Windows drives, such as a checkout on D:
+        # and a temporary home on C:.
+        if REPO.drive == self.home.drive:
+            equivalents += [os.path.relpath(REPO / "skills", self.home / ".hermes"),
+                            "~/" + os.path.relpath(REPO / "skills", self.home)]
         if os.name == "nt":
             equivalents.append("%DOTAGENTS_REPO%/skills")
         for equivalent in equivalents:

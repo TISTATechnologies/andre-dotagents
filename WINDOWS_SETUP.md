@@ -145,6 +145,9 @@ To install `just` on Windows:
 - Download from [the just releases page](https://github.com/casey/just/releases)
 - Or use `scoop install just` or `choco install just`
 
+The recipes need Bash on `PATH`, such as the one Git for Windows installs.
+`just ci` runs the PowerShell installer tests with your `pwsh`; without PowerShell 7 it skips them with a notice.
+
 ## Troubleshooting
 
 This section covers the failure modes specific to the Windows installer.
