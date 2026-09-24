@@ -31,6 +31,7 @@ These skills carry the documentation, specification, and requirements convention
 - [`tech-specs-update`](tech-specs-update/SKILL.md) *(user-invoked only)* - Update the related tech specs and requirements as part of planned work.
 - [`docs-only-convo`](docs-only-convo/SKILL.md) *(user-invoked only)* - Mark the current thread as only intended for updating documentation.
 - [`strip-ai-tells`](strip-ai-tells/SKILL.md) - Rewrites AI-sounding prose until it reads as human-written.
+- [`tista-brand-voice`](tista-brand-voice/SKILL.md) - Writes and edits prose in TISTA's brand voice.
 
 ## Software Development
 

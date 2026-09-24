@@ -1,0 +1,4 @@
+interface:
+  display_name: "TISTA Brand Voice"
+  short_description: "Write and edit in TISTA's voice"
+  default_prompt: "Use $tista-brand-voice to write or revise this content in TISTA's brand voice."

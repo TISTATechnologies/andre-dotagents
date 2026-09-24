@@ -1,0 +1,103 @@
+# Rebase tista-main onto this fork's main after "Sync fork" brings main up to
+# date with the parent repository, so the TISTA default branch is every
+# upstream change followed by its own TISTA-only commits.
+# Not paired with GitLab: it chains off the GitHub-only "Sync fork" workflow.
+#
+# Triggers:
+# - "Sync fork" finishing successfully.
+# - A daily fallback run and on-demand runs, which also cover a main updated
+#   by hand (the Sync fork button).
+# Schedules and workflow_run fire only from the default branch, and this file
+# lives on tista-main, so tista-main must be the default for them to run.
+#
+# The rebased branch is pushed with the default GITHUB_TOKEN, which GitHub
+# refuses when the push changes workflow files. That case is a one-off manual
+# sync: the run fails and its summary lists the commands to run locally.
+#
+# The push is forced with a lease, so a push made to tista-main while this
+# runs is never overwritten; the run fails instead. A rebase conflict fails
+# the run without pushing anything. Resolve it by rebasing tista-main onto
+# main locally and force-pushing the result.
+
+name: Sync tista-main
+
+on:
+  workflow_run:
+    workflows: ["Sync fork"]
+    types: [completed]
+  schedule:
+    - cron: "53 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-tista-main
+  cancel-in-progress: false
+
+jobs:
+  rebase:
+    name: Rebase tista-main onto main
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: tista-main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Rebase onto main
+        id: rebase
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898237+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main tista-main
+          before=$(git rev-parse origin/tista-main)
+          echo "before=${before}" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "tista-main is already based on main; nothing to rebase." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! git rebase origin/main; then
+            {
+              echo "Rebasing tista-main onto main conflicts in:"
+              git diff --name-only --diff-filter=U | sed 's/^/- /'
+              echo
+              echo "Nothing was pushed. Rebase tista-main onto main locally, resolve, and force-push."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            git rebase --abort
+            echo "::error::Rebase conflict between main and tista-main; see the job summary."
+            exit 1
+          fi
+          echo "rebased=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push tista-main
+        if: steps.rebase.outputs.rebased == 'true'
+        env:
+          TOKEN: ${{ github.token }}
+          BEFORE: ${{ steps.rebase.outputs.before }}
+        run: |
+          auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+          if output=$(git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+              push --force-with-lease="tista-main:${BEFORE}" origin HEAD:tista-main 2>&1); then
+            echo "$output"
+            echo "Rebased tista-main onto main $(git rev-parse --short origin/main) (was ${BEFORE:0:7})." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "$output"
+          if grep -q "refusing to allow .* workflow" <<<"$output"; then
+            {
+              echo "The rebase changes workflow files, which GITHUB_TOKEN may not push. Sync by hand:"
+              echo
+              echo '```bash'
+              echo "git fetch tista"
+              echo "git switch tista-main"
+              echo "git rebase tista/main"
+              echo "git push --force-with-lease=tista-main:${BEFORE} tista tista-main"
+              echo '```'
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::The rebase changes workflow files; sync tista-main by hand (see the job summary)."
+          fi
+          exit 1
