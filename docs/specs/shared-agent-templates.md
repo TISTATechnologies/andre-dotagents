@@ -5,10 +5,10 @@
 This specification describes how `dotagents` keeps one source per agent and turns it into what each agent tool reads.
 Each agent is one file, `agent_sources/<name>.md`, and editing that file changes the agent for every tool.
 A standard-library Python script generates Claude Code agents, Codex custom agents, Cursor agents, and Hermes personalities from those files whenever `just ci` or `just install` runs.
-CAI reads the source files directly.
+Xorc reads the source files directly.
 Nothing generated is committed.
 
-The shared [`skills/`](../../skills/README.md) packages are not generated, and the [CAI integration](../../README.md#cai) discovers them in `~/.agents/skills/`.
+The shared [`skills/`](../../skills/README.md) packages are not generated, and the [Xorc integration](../../README.md#xorc) discovers them in `~/.agents/skills/`.
 
 ## Goals and Non-Goals
 
@@ -35,7 +35,7 @@ description: Performs adversarial review of a code change ...
 model:
   tier: strong
   claude: opus
-  cai:
+  xorc:
     - ollama-local/qwen3.8:35b
     - ollama-local/qwen3.6:35b
   codex: gpt-6-astra
@@ -51,7 +51,7 @@ tools:
 skills:
   - senior-developer
   - code-review-precision
-cai:
+xorc:
   max_turns: 15
 ---
 # Reviewer
@@ -70,7 +70,7 @@ The model identifiers above are illustrative and are not checked against any pro
 - `readonly` is optional and states that the agent must not change files; a read-only agent must also list its `tools`, and they must not include `Write`, `Edit`, or `NotebookEdit`.
 - `tools` is optional and lists Claude Code tool names: `Agent`, `Bash`, `Edit`, `Glob`, `Grep`, `NotebookEdit`, `Read`, `Skill`, `Task`, `TodoWrite`, `WebFetch`, `WebSearch`, and `Write`.
 - `skills` lists the skills loaded before the agent starts, and `suggested_skills` those it loads when a task needs them; each must exist as `skills/<name>/SKILL.md`, and no skill may appear in both.
-- `exclude` lists tools that should not get this agent, from `claude`, `codex`, `cursor`, `hermes`, and `cai`.
+- `exclude` lists tools that should not get this agent, from `claude`, `codex`, `cursor`, `hermes`, and `xorc`.
 - A key named after a tool holds settings only that tool has, listed under [Per-Tool Settings](#per-tool-settings).
 
 Any other key fails generation, as does a duplicate key, so a typo is never silently ignored.
@@ -113,10 +113,10 @@ Each tool receives the shared intent in its own native form where it has one, an
 
 The tiers are `frontier`, `strong`, `standard`, and `fast`.
 For Claude Code they map to `fable`, `opus`, `sonnet`, and `haiku`; Codex and Cursor have no mappings yet.
-A tool's own value is one identifier, except for CAI, which takes a single identifier or an ordered preference list.
+A tool's own value is one identifier, except for Xorc, which takes a single identifier or an ordered preference list.
 Hermes personalities cannot set a model, so a `model.hermes` value fails generation, and the Hermes explainer names the tier instead.
 
-CAI identifiers follow CAI's model identifier format: a configured alias, a backend-qualified name such as `ollama-local/qwen3.8:35b`, or a provider-qualified name such as `ollama.qwen3.8:35b`.
+Xorc identifiers follow Xorc's model identifier format: a configured alias, a backend-qualified name such as `ollama-local/qwen3.8:35b`, or a provider-qualified name such as `ollama.qwen3.8:35b`.
 
 ### Effort
 
@@ -152,7 +152,7 @@ Generated YAML front matter uses block lists throughout; the only other list for
 - `claude` accepts `permissionMode`, `maxTurns`, `background`, `isolation`, and `memory`, with the values the agent authoring contract allows, rendered as native keys.
 - `cursor` accepts `is_background`, rendered as a native key.
 - `codex` and `hermes` accept no settings yet.
-- `cai` accepts `selection` (`auto` or `lock`), `max_steps`, `max_turns`, `ingest_personas`, and `mcp_servers`; the generator validates them and CAI reads them.
+- `xorc` accepts `selection` (`auto` or `lock`), `max_steps`, `max_turns`, `ingest_personas`, and `mcp_servers`; the generator validates them and Xorc reads them.
 
 A key outside a tool's list fails generation with the list of supported keys.
 
@@ -161,21 +161,21 @@ A key outside a tool's list fails generation with the list of supported keys.
 Hermes has no agent file format, so each agent becomes a personality under `agent.personalities.<name>`, holding `description` and a `system_prompt` that opens with an explainer paragraph and continues with the body.
 The generated file is a header comment followed by two lines, `description:` and `system_prompt:`, each holding a JSON string, which is also valid YAML, so the installers read it without a YAML parser.
 
-## CAI
+## Xorc
 
-CAI reads `~/.agents/agent_sources/` itself, so `dotagents` generates nothing for it.
-The CAI side is specified and built in CAI; this section is the contract between the two.
-Until CAI ships it, CAI does not see these agents, and its built-in personas are unaffected.
+Xorc reads `~/.agents/agent_sources/` itself, so `dotagents` generates nothing for it.
+The Xorc side is specified and built in Xorc; this section is the contract between the two.
+Until Xorc ships it, Xorc does not see these agents, and its built-in personas are unaffected.
 
-- CAI scans the top-level `*.md` files of `~/.agents/agent_sources/` as a persona layer below project and global personas and above its built-in ones, and skips `README.md`, the agent index.
-- It skips a file whose `schema` it does not support, with a diagnostic, and a file whose `exclude` lists `cai`, silently.
-- It maps `name`, `description`, and the body directly; `model.cai` to its model preference, as a default for one identifier or an ordered preference list for several; `skills` to its required skills and `suggested_skills` as they are; and the `cai` block's `selection`, `max_steps`, `max_turns`, `ingest_personas`, and `mcp_servers`.
+- Xorc scans the top-level `*.md` files of `~/.agents/agent_sources/` as a persona layer below project and global personas and above its built-in ones, and skips `README.md`, the agent index.
+- It skips a file whose `schema` it does not support, with a diagnostic, and a file whose `exclude` lists `xorc`, silently.
+- It maps `name`, `description`, and the body directly; `model.xorc` to its model preference, as a default for one identifier or an ordered preference list for several; `skills` to its required skills and `suggested_skills` as they are; and the `xorc` block's `selection`, `max_steps`, `max_turns`, `ingest_personas`, and `mcp_servers`.
   It ignores `model.tier`, other tools' `model` keys, `effort`, `color`, `readonly`, `tools`, `exclude`, and other tools' blocks.
 
-CAI makes one kind of write to a source file: `/model` places the selected identifier first in that agent's `model.cai`, moving it up when it is already listed and turning a single identifier into a list.
+Xorc makes one kind of write to a source file: `/model` places the selected identifier first in that agent's `model.xorc`, moving it up when it is already listed and turning a single identifier into a list.
 It changes nothing else in the file, so the change shows up as an ordinary diff in the clone, and the result must stay within the [front matter subset](#front-matter-subset), which accepts either list form, so the generator still reads it.
 
-CAI discovers `~/.agents` only.
+Xorc discovers `~/.agents` only.
 A clone elsewhere is linked there by the installers, as described under [Installation](#installation).
 
 ## Installation
@@ -189,9 +189,9 @@ Rendering never touches the home directory, and installing never renders anythin
 - Without Python, the installers skip only the agent steps and Hermes personalities, say why, and install skills, instructions, and settings as usual.
 - An invalid agent source stops the install with the generator's error.
 - A dry run still generates `generated/` in the clone, which installs nothing by itself, and changes nothing in the home directory.
-- For CAI, a clone at `~/.agents` needs nothing.
-  For a clone anywhere else, when CAI's configuration directory exists (`$XDG_CONFIG_HOME/cai`, or `~/.config/cai` when that variable is empty), the installers link `AGENTS.md` and each skill into `~/.agents` one at a time, and `agent_sources/` as a whole, so an agent added to the clone appears without reinstalling and a `/model` write lands in the clone.
-  `AGENTS.override.md` holds this repository's own rules and is never linked; `--no-cai`, or `-NoCai` in PowerShell, skips the step.
+- For Xorc, a clone at `~/.agents` needs nothing.
+  For a clone anywhere else, when Xorc's configuration directory exists (`$XDG_CONFIG_HOME/xorc`, or `~/.config/xorc` when that variable is empty), the installers link `AGENTS.md` and each skill into `~/.agents` one at a time, and `agent_sources/` as a whole, so an agent added to the clone appears without reinstalling and a `/model` write lands in the clone.
+  `AGENTS.override.md` holds this repository's own rules and is never linked; `--no-xorc`, or `-NoXorc` in PowerShell, skips the step.
 
 Every destination stays a real directory the tool owns.
 A link to the right file is reported as installed, a link elsewhere is skipped unless forced, a regular file in the way is skipped, and anything this repository does not provide is reported and never removed.
@@ -201,8 +201,8 @@ A link into this repository that points at an old location, such as the `agents/
 
 The PowerShell installer matches the Unix one wherever Windows allows.
 It uses a symbolic link for each file when this session can create one, which needs Developer Mode or an elevated shell; it tests this once and reports the link type.
-Directories, such as each skill and `agent_sources/` for CAI, are linked with junctions, which need no elevation; PowerShell on other systems uses a symbolic link instead.
-The CAI step only acts where a CAI configuration already exists and does not claim that CAI supports Windows.
+Directories, such as each skill and `agent_sources/` for Xorc, are linked with junctions, which need no elevation; PowerShell on other systems uses a symbolic link instead.
+The Xorc step only acts where a Xorc configuration already exists and does not claim that Xorc supports Windows.
 Otherwise it falls back to a hard link on the same drive, then a copy, and never requires administrator rights.
 Regenerating replaces files in the clone, which leaves a hard link or copy holding old content until the installer runs again.
 The installer records the hash of every file it places in `install-state.json` under `%LOCALAPPDATA%\dotagents`, refreshes a file that still matches that record, and replaces a file the user changed only with `-Force`.
@@ -243,4 +243,4 @@ Each target's contract rests on these sources, which fix the design baseline rat
   Whether web search stays available to a read-only custom agent is not yet verified.
 - Cursor: the [subagent documentation](https://cursor.com/docs/subagents), as retrieved on 2026-09-25.
 - Hermes: Hermes Agent v0.21.0 and its [personality](https://hermes-agent.nousresearch.com/docs/user-guide/features/personality/) and [delegation](https://hermes-agent.nousresearch.com/docs/user-guide/features/delegation) documentation.
-- CAI: the `usability_fixes` branch of `https://gitlab.com/cypher_zero/cai` at `eb5387d841f784d95a3ad1c534b741158e5b7780`, in `docs/tech_specs/personas.md`, `docs/tech_specs/inference/model_selection.md`, and `internal/personas/` for personas and models, and `internal/config/agent_instructions.go`, `internal/config/config_paths.go`, and `internal/skills/discover.go` for what it reads from `~/.agents` and where its configuration lives.
+- Xorc: the `main` branch of `https://gitlab.com/cypher_zero/xorc` at `c05631f4ce8dcdd534b221b7da82e75a402d732c`, in `docs/tech_specs/personas.md`, `docs/tech_specs/inference/model_selection.md`, and `internal/personas/` for personas and models, and `internal/config/agent_instructions.go`, `internal/config/config_paths.go`, and `internal/skills/discover.go` for what it reads from `~/.agents` and where its configuration lives.

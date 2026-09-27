@@ -35,7 +35,7 @@ Each script and module has an offline unit test beside it, named `test_<script>.
 Run them with `just test-python`, which first runs the Python quality gate and compiles every Python file, then runs every `test_*.py` in this directory except the PowerShell installer tests.
 
 The installer tests are split by topic, with shared fixtures in a support module:
-`test_install_hermes.py`, `test_install_settings.py`, `test_install_links.py`, and `test_install_cai.py` use [`install_test_support.py`](install_test_support.py), and the `test_install_powershell_*.py` files use [`powershell_test_support.py`](powershell_test_support.py).
+`test_install_hermes.py`, `test_install_settings.py`, `test_install_links.py`, and `test_install_xorc.py` use [`install_test_support.py`](install_test_support.py), and the `test_install_powershell_*.py` files use [`powershell_test_support.py`](powershell_test_support.py).
 The generator tests share [`agent_test_support.py`](agent_test_support.py).
 
 Installer regression tests cover original settings preservation, timestamped backups, repeated runs, and dry runs using temporary homes rather than the real user configuration.
@@ -62,7 +62,7 @@ The junction-migration test only runs on Windows, since junctions do not exist e
 - `bandit`, configured by [`bandit.yaml`](../bandit.yaml), for security issues.
 
 `just venv` installs the tools from [`requirements-lint.txt`](requirements-lint.txt) into `.venv`, which the recipe uses when present; `just setup` runs it.
-The thresholds and tools follow CAI's Python gates.
+The thresholds and tools follow Xorc's Python gates.
 
 ## Conventions
 

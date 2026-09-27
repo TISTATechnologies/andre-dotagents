@@ -14,7 +14,7 @@ from agent_front_matter import AMBIGUOUS_WORDS, SourceError
 from agent_source import SKILLS_HEADING, Agent
 
 # What each tier means for each tool. A tool with no entry for a tier uses its
-# session's model. Hermes personalities cannot set a model, and CAI resolves
+# session's model. Hermes personalities cannot set a model, and Xorc resolves
 # its own from the sources.
 TIER_MODELS = {
     "claude": {"frontier": "fable", "strong": "opus", "standard": "sonnet", "fast": "haiku"},

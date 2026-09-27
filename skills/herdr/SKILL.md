@@ -70,6 +70,14 @@ herdr pane read <pane-id> --source recent-unwrapped --lines 120
 Read sources: `visible`, `recent`, `recent-unwrapped` (best for logs and transcripts), and `detection`.
 If a larger `--lines` reveals nothing more, the agent is on the alternate screen; as a fallback, ask it to write its response to a temporary Markdown file and reply with the path.
 
+## Xorc Panes
+
+Xorc reports `idle`, `working`, and `blocked` to Herdr itself, so `agent list`, `agent get`, `agent wait`, and `agent read` work against a Xorc pane, and a reported `idle` shows as `done`.
+Herdr has no `xorc` agent kind yet, so `agent prompt` and `agent start --kind xorc` are refused; a Discussion asking for the kind is drafted in the Xorc repository for its alpha release.
+Until then, hand Xorc a task with `pane run <pane-id> "<prompt>"` or `pane send-text` plus `pane send-keys <pane-id> enter`, then `agent wait <pane-id> --until done` for readiness or `--until blocked` for an approval or credential prompt.
+Xorc's transcript is on the alternate screen, so `agent read` returns the visible rows only; for a long result ask Xorc to write it to a file and reply with the path.
+Inside Xorc, `/herdr status` shows the reporter state.
+
 ## Standard Team Workflow
 
 The user's usual multi-agent setup is a few long-lived sessions sharing one git checkout, each with one role.

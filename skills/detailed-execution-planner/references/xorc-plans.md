@@ -1,15 +1,15 @@
-# CAI Planning Workflow
+# Xorc Planning Workflow
 
 ## Native Contract
 
-Use this workflow only for a requested CAI execution plan.
-Load CAI's available `plan-creator` skill through `ingest_skill` and inspect the current schemas of its planning tools before creating or changing a plan.
+Use this workflow only for a requested Xorc execution plan.
+Load Xorc's available `plan-creator` skill through `ingest_skill` and inspect the current schemas of its planning tools before creating or changing a plan.
 Treat that native workflow and the workspace's requirements and specifications as authoritative; do not substitute the Cursor template from this package.
-If the native skill or required planning tools are unavailable, report the missing capability and stop native authoring rather than inventing tool calls or presenting a prose checklist as an executable CAI plan.
+If the native skill or required planning tools are unavailable, report the missing capability and stop native authoring rather than inventing tool calls or presenting a prose checklist as an executable Xorc plan.
 
-A persisted CAI plan is a `.caip.md` artifact with native identity, title, lifecycle state, timestamps, and structured tasks containing steps.
+A persisted Xorc plan is a `.xorcp.md` artifact with native identity, title, lifecycle state, timestamps, and structured tasks containing steps.
 Its Markdown body is explanatory text, not executable task state.
-Do not convert Cursor `name`, `overview`, `todos`, or checkbox status into CAI task state merely by renaming the file.
+Do not convert Cursor `name`, `overview`, `todos`, or checkbox status into Xorc task state merely by renaming the file.
 
 ## Scope and Task Quality
 
@@ -39,8 +39,8 @@ If sources disagree, record the gap and ask for direction; do not modify canonic
 5. Read the resulting plan through the native plan inspection surface and verify its objective, complete task and step coverage, dependencies, references, and draft state.
    Report only the artifact and state actually returned by the tools.
 
-Let CAI choose the artifact location and manage persistence.
-Do not create `.cai/`, move a plan between project and XDG storage, or fabricate approval timestamps to force a desired lifecycle state.
+Let Xorc choose the artifact location and manage persistence.
+Do not create `.xorc/`, move a plan between project and XDG storage, or fabricate approval timestamps to force a desired lifecycle state.
 Creating a draft does not authorize proposing, approving, activating, or executing it.
 For ordinary non-goal plans, leave those transitions to the user; for an active goal, follow the native trusted goal workflow without claiming user approval or expanding its scope.
 
@@ -53,10 +53,10 @@ If the installed tools cannot represent the requested change, explain the limita
 
 Record completion only from observed execution evidence and successful per-task validation.
 If a human-readable checklist is maintained in the body, keep it consistent with native task state without using it as the source of execution status.
-Do not invoke `update-cursor-todos` for CAI.
+Do not invoke `update-cursor-todos` for Xorc.
 
 ## Final Verification
 
 Read back the persisted plan after the final mutation and confirm every requested task, step, reference, dependency, and verification condition is represented.
-Confirm the plan uses CAI's native schema and contains no Cursor `todos` substitution.
+Confirm the plan uses Xorc's native schema and contains no Cursor `todos` substitution.
 Report its path, observed state, validation results, and unresolved gaps; do not report planned tests as already passed or a saved draft as approved or running.

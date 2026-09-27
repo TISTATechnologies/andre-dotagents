@@ -9,10 +9,10 @@
 
 These are my agent skills and instructions, kept in one place and shared across every agent tool I use.
 One directory under [`skills/`](skills/README.md) is one skill.
-Claude Code, Codex, Cursor, Gemini, Grok, GitHub Copilot in VS Code, and Pi read that directory through symlinks; Hermes Agent scans it as an external skill directory, and CAI discovers `~/.agents/skills/` natively.
+Claude Code, Codex, Cursor, Gemini, Grok, GitHub Copilot in VS Code, and Pi read that directory through symlinks; Hermes Agent scans it as an external skill directory, and Xorc discovers `~/.agents/skills/` natively.
 I edit a skill once and consumers pick it up through their normal reload or session-start behavior.
 One file under [`agent_sources/`](agent_sources/README.md) is one agent that preloads the skills it needs, and is the only place that agent is written.
-`just ci` and `just install` generate it as a Claude Code subagent, a Codex agent, a Cursor agent, and a Hermes personality, each installed the way its tool expects, and CAI reads the file directly.
+`just ci` and `just install` generate it as a Claude Code subagent, a Codex agent, a Cursor agent, and a Hermes personality, each installed the way its tool expects, and Xorc reads the file directly.
 
 They are personal and opinionated; see [Scope and Point of View](#scope-and-point-of-view) before adopting them wholesale.
 
@@ -37,7 +37,7 @@ Where a skill can discover a convention from the repository it is running in, I 
 
 - 🧩 **One source of truth**: every agent tool reads the same `skills/` directory through links or external-directory registration; there are no per-tool copies to drift.
 - 🤖 **Agents built on skills**: a coder, two reviewers, test runner, researcher, planner, spec author, feature author, and docs writer, each preloading the skills for its role, with a model chosen per role.
-- 🧬 **One file per agent**: each agent is written once in `agent_sources/` and generated for Claude Code, Codex, Cursor, and Hermes, which CAI reads directly, with every restriction a tool cannot enforce stated rather than dropped.
+- 🧬 **One file per agent**: each agent is written once in `agent_sources/` and generated for Claude Code, Codex, Cursor, and Hermes, which Xorc reads directly, with every restriction a tool cannot enforce stated rather than dropped.
 - 🔗 **One-command install**: `just install` creates the links each tool expects and registers the skills and personalities with an existing Hermes setup; `just install-dry-run` shows the plan first.
 - ✅ **Validated**: `just ci` generates the agents, then checks skill frontmatter, naming, agent manifests, agent definitions, Markdown conventions, internal links, and the repository's own Python.
 - 📐 **Documented conventions**: the frontmatter contract and prose rules live in [docs/docs_standards/](docs/docs_standards/README.md), not in reviewers' heads.
@@ -62,7 +62,7 @@ Enable Actions on the fork so a daily workflow can merge `main` from here; see [
 I keep the clone at `~/.agents`, and the documentation assumes that path.
 For link-based consumers, `just install` resolves the repository root at run time and points every link at wherever the clone actually lives.
 If you move or re-clone it, run `just install --force` to repoint the links, because an existing link that points somewhere else is skipped rather than replaced.
-CAI is different: it discovers `~/.agents` only, so for a clone elsewhere `just install` links the clone's instructions, skills, and agents into `~/.agents` when CAI is installed; see [CAI](#cai).
+Xorc is different: it discovers `~/.agents` only, so for a clone elsewhere `just install` links the clone's instructions, skills, and agents into `~/.agents` when Xorc is installed; see [Xorc](#xorc).
 
 On Unix, skill content stays in this clone.
 `just install` creates symlinks for the other tools and registers the skills directory with Hermes, so edits stay shared rather than leaving stale copies behind.
@@ -106,7 +106,7 @@ Use `just --list` to see every recipe.
 - Instruction-file links, one symlink pointing at `AGENTS.md`: `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.cursor/rules/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.grok/AGENTS.md`, and `~/.pi/agent/AGENTS.md`.
   The Gemini link uses that tool's own filename, which is what it reads by default.
 
-For CAI, a clone outside `~/.agents` also gets `~/.agents/AGENTS.md`, per-skill links in `~/.agents/skills`, and a link from `~/.agents/agent_sources` to the whole `agent_sources/` directory; see [CAI](#cai).
+For Xorc, a clone outside `~/.agents` also gets `~/.agents/AGENTS.md`, per-skill links in `~/.agents/skills`, and a link from `~/.agents/agent_sources` to the whole `agent_sources/` directory; see [Xorc](#xorc).
 
 It also installs the Claude Code and Cursor status lines: `~/.claude/statusline-command.sh` is linked to [claude/statusline-command.sh](claude/statusline-command.sh), `~/.cursor/statusline-command.sh` is linked to [cursor/statusline-command.sh](cursor/statusline-command.sh), and each tool's settings file is pointed at its script, with the existing file backed up alongside first and every other setting left untouched.
 Pass `--no-statusline` (`just install --no-statusline`) to skip that step entirely.
@@ -184,48 +184,48 @@ Hermes reads project context files independently; an `AGENTS.override.md` replac
 Tool-specific invocation metadata such as `disable-model-invocation` is not a portable enforcement boundary.
 See the [Hermes skills documentation](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills) and [project context documentation](https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files).
 
-### CAI
+### Xorc
 
-CAI (Cypher's Agent Interface) reads `~/.agents` directly: `AGENTS.md` as global instructions, `skills/` as shared skills, and, once CAI ships it, `agent_sources/` as personas.
+Xorc reads `~/.agents` directly: `AGENTS.md` as global instructions, `skills/` as shared skills, and, once Xorc ships it, `agent_sources/` as personas.
 It does not load `~/.agents/AGENTS.override.md`, so this repository's own rules stay with the repository.
 A clone at `~/.agents` needs no installer link, package copy, or YAML setting.
 
-CAI does not look anywhere else, so for a clone elsewhere the installers expose it at `~/.agents` when CAI's configuration directory exists (`$XDG_CONFIG_HOME/cai`, or `~/.config/cai` when that variable is empty):
+Xorc does not look anywhere else, so for a clone elsewhere the installers expose it at `~/.agents` when Xorc's configuration directory exists (`$XDG_CONFIG_HOME/xorc`, or `~/.config/xorc` when that variable is empty):
 
 - `AGENTS.md` and each skill are linked into `~/.agents` one at a time, like every other tool's links, so anything else there is left alone.
-- `agent_sources/` is linked as a whole, so an agent added to the clone appears without reinstalling, and a model CAI saves with `/model` is written into the clone.
+- `agent_sources/` is linked as a whole, so an agent added to the clone appears without reinstalling, and a model Xorc saves with `/model` is written into the clone.
 - `AGENTS.override.md` holds this repository's own rules and is never linked.
-- An existing entry that points elsewhere is replaced only with `--force`, and `--no-cai` skips the step.
+- An existing entry that points elsewhere is replaced only with `--force`, and `--no-xorc` skips the step.
 
-CAI follows these links: it reads an instruction file or skill package through a symbolic link when the target is a regular file or directory.
-Neither installer changes CAI configuration, personas, or native skills.
-This integration targets CAI's Linux/XDG layout; it does not imply native Windows support, and the Windows installer only acts where a CAI configuration already exists.
+Xorc follows these links: it reads an instruction file or skill package through a symbolic link when the target is a regular file or directory.
+Neither installer changes Xorc configuration, personas, or native skills.
+This integration targets Xorc's Linux/XDG layout; it does not imply native Windows support, and the Windows installer only acts where a Xorc configuration already exists.
 
 For a single project, skill-name precedence is:
 
-1. Project `.cai/skills/`.
+1. Project `.xorc/skills/`.
 2. Project `.agents/skills/`.
-3. CAI's configured native global skills directory, defaulting to `$XDG_CONFIG_HOME/cai/skills/`.
+3. Xorc's configured native global skills directory, defaulting to `$XDG_CONFIG_HOME/xorc/skills/`.
 4. Global `~/.agents/skills/`.
-5. CAI built-in skills.
+5. Xorc built-in skills.
 6. Enabled product-specific foreign skills, currently project `.cursor/skills/`.
 
 The first valid candidate wins; definitions do not merge.
 Multi-project workspaces also include their member-project roots before global roots.
-CAI watches shared skill roots for changes, while active skills remain bound to their selected source rather than silently switching to a new same-name winner.
+Xorc watches shared skill roots for changes, while active skills remain bound to their selected source rather than silently switching to a new same-name winner.
 
-The supported CAI global configuration root for this integration is `$XDG_CONFIG_HOME/cai`, falling back to `~/.config/cai` when `XDG_CONFIG_HOME` is unset.
-`CAI_CONFIG`, when present, selects a custom configuration file, primarily for testing and custom configurations; it is not a fully supported relocation mechanism for all global artifacts.
+The supported Xorc global configuration root for this integration is `$XDG_CONFIG_HOME/xorc`, falling back to `~/.config/xorc` when `XDG_CONFIG_HOME` is unset.
+`XORC_CONFIG`, when present, selects a custom configuration file, primarily for testing and custom configurations; it is not a fully supported relocation mechanism for all global artifacts.
 Current instruction discovery can follow that file's directory while other artifacts retain their XDG root.
-Do not infer skill, persona, or instruction installation destinations from `CAI_CONFIG`; this integration writes none of them.
+Do not infer skill, persona, or instruction installation destinations from `XORC_CONFIG`; this integration writes none of them.
 
-In a running CAI session, inspect the shared catalog without activating skills:
+In a running Xorc session, inspect the shared catalog without activating skills:
 
 ```text
 /skills --all ~/.agents/skills
 ```
 
-Check the displayed source, winning or shadowed state, and compatibility markers rather than treating a successful `just install` as proof of CAI loading.
+Check the displayed source, winning or shadowed state, and compatibility markers rather than treating a successful `just install` as proof of Xorc loading.
 To exercise direct activation without requesting a commit or another external effect, use a shared review skill with a read-only task:
 
 ```text
@@ -234,15 +234,15 @@ $code-review-precision Review the current diff without changing files.
 
 Current compatibility boundaries are deliberate:
 
-- The tracked skill packages match CAI's package layout.
-- CAI reads the agents in `~/.agents/agent_sources/` directly, as specified in [Shared Agent Templates](docs/specs/shared-agent-templates.md#cai), so nothing is generated for it.
-  Until CAI ships that, CAI does not see these agents.
-- CAI does not enforce `user-invocable` or `disable-model-invocation` as activation policy, and `allowed-tools` declarations do not grant or restrict authority.
+- The tracked skill packages match Xorc's package layout.
+- Xorc reads the agents in `~/.agents/agent_sources/` directly, as specified in [Shared Agent Templates](docs/specs/shared-agent-templates.md#xorc), so nothing is generated for it.
+  Until Xorc ships that, Xorc does not see these agents.
+- Xorc does not enforce `user-invocable` or `disable-model-invocation` as activation policy, and `allowed-tools` declarations do not grant or restrict authority.
   Skill prose does not replace host-side approvals or sandbox policy.
-- [`detailed-execution-planner`](skills/detailed-execution-planner/SKILL.md) selects a native CAI planning workflow separately from Cursor's plan format.
+- [`detailed-execution-planner`](skills/detailed-execution-planner/SKILL.md) selects a native Xorc planning workflow separately from Cursor's plan format.
   [`update-cursor-todos`](skills/update-cursor-todos/SKILL.md) remains Cursor-only.
 
-CAI's shared-configuration proposal, draft 470, is deferred; this integration does not depend on its proposed runtime adapters or configuration keys.
+Xorc's shared-configuration proposal, draft 470, is deferred; this integration does not depend on its proposed runtime adapters or configuration keys.
 [Shared Agent Templates](docs/specs/shared-agent-templates.md) specifies how each tool's agents come from the shared sources.
 
 ### Cursor CLI Configuration Location

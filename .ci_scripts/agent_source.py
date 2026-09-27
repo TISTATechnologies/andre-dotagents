@@ -19,12 +19,12 @@ SOURCES_DIR = "agent_sources"
 INDEX_FILENAME = "README.md"
 
 # The only source format version this reader understands. A source declares it
-# with `schema: 1`, so a reader such as CAI can refuse a version it does not know.
+# with `schema: 1`, so a reader such as Xorc can refuse a version it does not know.
 SCHEMA_VERSION = 1
 
-# Every tool an agent can target. CAI reads the sources itself; the others
+# Every tool an agent can target. Xorc reads the sources itself; the others
 # get generated files.
-TOOLS = ("claude", "codex", "cursor", "hermes", "cai")
+TOOLS = ("claude", "codex", "cursor", "hermes", "xorc")
 
 # ---------------------------------------------------------------------------
 # What each tool supports
@@ -82,8 +82,8 @@ TOOL_SETTINGS: dict[str, dict[str, object]] = {
     "codex": {},
     "cursor": {"is_background": bool},
     "hermes": {},
-    # CAI reads these itself; they are validated here so a typo fails `just ci`.
-    "cai": {
+    # Xorc reads these itself; they are validated here so a typo fails `just ci`.
+    "xorc": {
         "selection": ("auto", "lock"),
         "max_steps": int,
         "max_turns": int,
@@ -132,7 +132,7 @@ class Agent:
     description: str
     body: str
     tier: str | None = None
-    # A tool's own model; a string for most tools, a preference list for CAI.
+    # A tool's own model; a string for most tools, a preference list for Xorc.
     models: dict[str, object] = field(default_factory=dict)
     effort: str | None = None
     color: str | None = None
@@ -248,9 +248,9 @@ def _read_model(value: object, where: str) -> tuple[str | None, dict[str, object
             tier = item
         elif key == "hermes":
             raise SourceError(f"{where}.hermes: Hermes personalities cannot set a model")
-        elif key == "cai":
-            # CAI takes an ordered preference list; a single model is a list of one.
-            models[key] = _require_string_list(item, f"{where}.cai")
+        elif key == "xorc":
+            # Xorc takes an ordered preference list; a single model is a list of one.
+            models[key] = _require_string_list(item, f"{where}.xorc")
         elif key in TOOLS:
             models[key] = _require_string(item, f"{where}.{key}")
         else:

@@ -11,7 +11,7 @@ This script turns each source into:
 - a Hermes personality, generated/hermes/personalities/<name>.yaml
 
 generated/ is ignored by Git and rebuilt from scratch on every run, by both
-`just ci` and the installers. CAI reads agent_sources/ itself, so nothing is
+`just ci` and the installers. Xorc reads agent_sources/ itself, so nothing is
 generated for it.
 
 The work is split across three modules beside this script, all standard
@@ -43,7 +43,7 @@ from agent_source import Agent, load_agents
 
 OUTPUT_DIR = "generated"
 
-# The tools this script writes files for. CAI is also a target, but reads
+# The tools this script writes files for. Xorc is also a target, but reads
 # agent_sources/ itself.
 GENERATED_TOOLS = ("claude", "codex", "cursor", "hermes")
 

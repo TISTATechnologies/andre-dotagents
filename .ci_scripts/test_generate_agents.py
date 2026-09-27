@@ -38,7 +38,7 @@ class OutputTest(TreeTestCase):
         self.assertEqual(leftovers, [])
 
     def test_exclude_skips_tools(self) -> None:
-        self.replace("color: red", "color: red\nexclude: [hermes, cai]")
+        self.replace("color: red", "color: red\nexclude: [hermes, xorc]")
         _, output = self.generate()
         self.assertFalse((output / "hermes").exists())
         self.assertTrue((output / "claude/agents/sample.md").is_file())

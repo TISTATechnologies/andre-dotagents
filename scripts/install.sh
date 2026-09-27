@@ -26,13 +26,13 @@
 # did, is replaced only with --force; ownership is recorded in
 # ${XDG_STATE_HOME:-~/.local/state}/dotagents/install-state.json.
 #
-# CAI reads ~/.agents itself: AGENTS.md as global instructions, skills/, and
+# Xorc reads ~/.agents itself: AGENTS.md as global instructions, skills/, and
 # agent_sources/. A clone at ~/.agents needs nothing. For a clone anywhere else,
-# when CAI's configuration directory exists, the installer links AGENTS.md and
+# when Xorc's configuration directory exists, the installer links AGENTS.md and
 # each skill into ~/.agents one at a time, and agent_sources/ as a whole, so an
-# agent added to the clone appears without reinstalling and a model CAI saves
+# agent added to the clone appears without reinstalling and a model Xorc saves
 # with /model is written into the clone. AGENTS.override.md holds this
-# repository's own rules and is never linked. --no-cai skips the step.
+# repository's own rules and is never linked. --no-xorc skips the step.
 #
 # Skills are linked one directory at a time into a real skills directory that
 # each tool owns. A tool can write its own skills next to ours (Claude Code
@@ -81,7 +81,7 @@ no_hermes=0
 no_codex_agents=0
 no_cursor_agents=0
 no_hermes_personalities=0
-no_cai=0
+no_xorc=0
 no_pi=0
 
 # Targets that receive one symlink per agent file. Only Claude Code reads this
@@ -119,7 +119,7 @@ usage() {
     cat <<'USAGE'
 Usage: install.sh [--dry-run] [--force] [--no-statusline]
                   [--no-attribution] [--no-hermes] [--no-codex-agents]
-                  [--no-cursor-agents] [--no-hermes-personalities] [--no-cai]
+                  [--no-cursor-agents] [--no-hermes-personalities] [--no-xorc]
                   [--no-pi] [--help]
 
   --dry-run                  Print the changes that would be made and change nothing.
@@ -131,7 +131,7 @@ Usage: install.sh [--dry-run] [--force] [--no-statusline]
   --no-codex-agents          Skip linking the generated Codex agents.
   --no-cursor-agents         Skip linking the generated Cursor agents.
   --no-hermes-personalities  Skip setting the generated Hermes personalities.
-  --no-cai                   Skip exposing a clone outside ~/.agents to CAI.
+  --no-xorc                  Skip exposing a clone outside ~/.agents to Xorc.
   --no-pi                    Skip installing links for Pi (pi.dev).
   --help                     Show this message.
 USAGE
@@ -147,7 +147,7 @@ while [ "$#" -gt 0 ]; do
         --no-codex-agents) no_codex_agents=1 ;;
         --no-cursor-agents) no_cursor_agents=1 ;;
         --no-hermes-personalities) no_hermes_personalities=1 ;;
-        --no-cai) no_cai=1 ;;
+        --no-xorc) no_xorc=1 ;;
         -h | --help)
             usage
             exit 0
@@ -406,18 +406,18 @@ for target in "${instruction_targets[@]}"; do
     link_one "$agents_file" "$target"
 done
 
-# CAI discovers ~/.agents only, so a clone elsewhere is linked there; see the
-# header. CAI's configuration directory follows CAI's own rule: a non-empty
+# Xorc discovers ~/.agents only, so a clone elsewhere is linked there; see the
+# header. Xorc's configuration directory follows Xorc's own rule: a non-empty
 # XDG_CONFIG_HOME, else ~/.config.
 agents_home="${HOME}/.agents"
-cai_config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/cai"
-echo "CAI:"
-if [ "$no_cai" -eq 1 ]; then
-    echo "  skipped (--no-cai)."
+xorc_config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/xorc"
+echo "Xorc:"
+if [ "$no_xorc" -eq 1 ]; then
+    echo "  skipped (--no-xorc)."
 elif [ "$(readlink -f "$agents_home" 2>/dev/null || true)" = "$(readlink -f "$repo_root")" ]; then
-    echo "  ok: CAI reads this clone at ${agents_home} directly"
-elif [ ! -d "$cai_config_dir" ]; then
-    echo "  skip: CAI configuration not found at ${cai_config_dir}"
+    echo "  ok: Xorc reads this clone at ${agents_home} directly"
+elif [ ! -d "$xorc_config_dir" ]; then
+    echo "  skip: Xorc configuration not found at ${xorc_config_dir}"
 elif { [ -e "$agents_home" ] || [ -L "$agents_home" ]; } && [ ! -d "$agents_home" ]; then
     echo "  skip: ${agents_home} exists and is not a directory" >&2
 else

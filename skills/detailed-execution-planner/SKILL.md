@@ -1,6 +1,6 @@
 ---
 name: detailed-execution-planner
-description: Creates and updates test-gated Cursor or native CAI execution plans. Invoke only when explicitly called by user.
+description: Creates and updates test-gated Cursor or native Xorc execution plans. Invoke only when explicitly called by user.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -27,13 +27,13 @@ Continue asking questions until you are sure you have all needed information and
 ## Select the Plan Target
 
 Determine the requested consumer from the user's request, the existing plan artifact, and the available host tools before choosing a format.
-If those signals conflict or neither Cursor nor CAI is established, ask which target is intended rather than guessing or combining schemas.
+If those signals conflict or neither Cursor nor Xorc is established, ask which target is intended rather than guessing or combining schemas.
 
-- For CAI `.caip.md` plans, read and follow [CAI Planning Workflow](references/cai-plans.md), including its validation and update rules.
-  Do not use the Cursor template, `todos` frontmatter, or Cursor TODO synchronization for CAI.
+- For Xorc `.xorcp.md` plans, read and follow [Xorc Planning Workflow](references/xorc-plans.md), including its validation and update rules.
+  Do not use the Cursor template, `todos` frontmatter, or Cursor TODO synchronization for Xorc.
   After completing that workflow, stop; every section below this target-selection section applies only to Cursor plans.
 - For Cursor `.plan.md` plans, follow the remaining sections and the Cursor template they reference.
-  Keep native CAI fields and lifecycle operations out of the Cursor artifact.
+  Keep native Xorc fields and lifecycle operations out of the Cursor artifact.
 
 ## Cursor Plan Frontmatter (Required)
 

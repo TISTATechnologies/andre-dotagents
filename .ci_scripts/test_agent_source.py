@@ -41,8 +41,8 @@ class ValidationTest(TreeTestCase):
             ("skills:\n  - alpha", "skills:\n  - gamma", "does not exist under skills/"),
             ("skills:\n  - alpha", "skills:\n  - beta", "both required and suggested"),
             ("color: red", "color: red\nexclude: [gemini]", "unknown tool(s) gemini"),
-            ("color: red", "color: red\ncai:\n  max_turns: many", "must be an integer"),
-            ("color: red", "color: red\ncai:\n  selection: always", "must be one of auto, lock"),
+            ("color: red", "color: red\nxorc:\n  max_turns: many", "must be an integer"),
+            ("color: red", "color: red\nxorc:\n  selection: always", "must be one of auto, lock"),
             ("color: red", "color: red\ncodex:\n  sandbox_mode: danger", "not a codex setting"),
             ("color: red", "color: red\ncolour: red", "unknown key(s) colour"),
         ]
@@ -73,17 +73,17 @@ class ValidationTest(TreeTestCase):
                 self.write(SOURCE.replace(BODY, body))
                 self.assert_invalid(fragment)
 
-    def test_cai_block_and_model_are_accepted(self) -> None:
+    def test_xorc_block_and_model_are_accepted(self) -> None:
         self.replace(
             "color: red",
-            "color: red\ncai:\n  selection: lock\n  max_turns: 15\n  mcp_servers: [a]",
+            "color: red\nxorc:\n  selection: lock\n  max_turns: 15\n  mcp_servers: [a]",
         )
         expected = {"selection": "lock", "max_turns": 15, "mcp_servers": ["a"]}
-        self.assertEqual(self.load().settings["cai"], expected)
+        self.assertEqual(self.load().settings["xorc"], expected)
 
-        # A single CAI model is read as a preference list of one.
-        self.replace("model: strong", "model:\n  tier: strong\n  cai: ollama-local/q:1b")
-        self.assertEqual(self.load().models, {"cai": ["ollama-local/q:1b"]})
+        # A single Xorc model is read as a preference list of one.
+        self.replace("model: strong", "model:\n  tier: strong\n  xorc: ollama-local/q:1b")
+        self.assertEqual(self.load().models, {"xorc": ["ollama-local/q:1b"]})
 
     def test_all_problems_are_reported_together(self) -> None:
         self.write(SOURCE.replace("schema: 1", "schema: 2"), "one")

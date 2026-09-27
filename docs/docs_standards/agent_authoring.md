@@ -6,7 +6,7 @@ This document defines what an agent in this repository must contain, how it is n
 It follows the [Claude Code subagent documentation](https://code.claude.com/docs/en/sub-agents) and adds this repository's own conventions on top of it.
 Every rule here is enforced by `just ci` unless the text says otherwise.
 
-Each agent is written once, in [`agent_sources/`](../../agent_sources/README.md), and generated for Claude Code, Codex, Cursor, and Hermes; CAI reads the source directly.
+Each agent is written once, in [`agent_sources/`](../../agent_sources/README.md), and generated for Claude Code, Codex, Cursor, and Hermes; Xorc reads the source directly.
 The rules below are stated for the source file and for the Claude Code agent generated from it, which `just validate-agents` checks.
 [Shared Agent Templates](../specs/shared-agent-templates.md) specifies every source key and how it maps to each tool.
 

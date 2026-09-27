@@ -127,7 +127,7 @@ class InstallLinksTest(LinkTestCase):
                 self.assertEqual(sorted(p.name for p in directory.iterdir()), [name])
                 self.assertTrue((directory / name).is_symlink())
                 self.assertEqual((directory / name).resolve(), (self.repo / source / name).resolve())
-        # Without a CAI configuration, nothing is written for CAI.
+        # Without a Xorc configuration, nothing is written for Xorc.
         self.assertFalse((self.home / ".config").exists())
         self.assertFalse((self.home / ".agents").exists())
 

@@ -48,15 +48,15 @@
     Hermes personality is set in Hermes config through its CLI; one this
     installer did not set, or one changed since, is replaced only with -Force.
 
-    CAI reads ~/.agents itself: AGENTS.md as global instructions, skills/, and
+    Xorc reads ~/.agents itself: AGENTS.md as global instructions, skills/, and
     agent_sources/. A clone at ~/.agents needs nothing. For a clone anywhere
-    else, when CAI's configuration folder exists, the installer links
+    else, when Xorc's configuration folder exists, the installer links
     AGENTS.md and each skill into ~/.agents one at a time, and agent_sources/
     as a whole, so an agent added to the clone appears without reinstalling
-    and a model CAI saves with /model is written into the clone.
+    and a model Xorc saves with /model is written into the clone.
     AGENTS.override.md holds this repository's own rules and is never linked.
-    This does not claim that CAI supports Windows; the step only acts where a
-    CAI configuration already exists.
+    This does not claim that Xorc supports Windows; the step only acts where a
+    Xorc configuration already exists.
 
     An existing real file or directory that this repository did not create is
     never overwritten unless -Force is given.
@@ -91,7 +91,7 @@
 .PARAMETER NoHermesPersonalities
     Skip setting the generated Hermes personalities.
 
-Skip exposing a clone outside ~/.agents to CAI.
+Skip exposing a clone outside ~/.agents to Xorc.
 
 .PARAMETER NoPi
     Skip installing links for Pi (pi.dev).
@@ -114,7 +114,7 @@ param(
     [switch]$NoCodexAgents,
     [switch]$NoCursorAgents,
     [switch]$NoHermesPersonalities,
-    [switch]$NoCai,
+    [switch]$NoXorc,
     [switch]$NoPi
 )
 
@@ -1013,27 +1013,27 @@ foreach ($target in $instructionTargets) {
     Install-FileLink $agentsFile $target
 }
 
-# CAI discovers ~/.agents only, so a clone elsewhere is linked there; see the
-# help text. CAI's configuration folder follows CAI's own rule: a non-empty
+# Xorc discovers ~/.agents only, so a clone elsewhere is linked there; see the
+# help text. Xorc's configuration folder follows Xorc's own rule: a non-empty
 # XDG_CONFIG_HOME, else ~/.config.
 $agentsHome = Expand-Home '~/.agents'
-$caiConfigDir = if (-not [string]::IsNullOrEmpty($env:XDG_CONFIG_HOME)) {
-    Join-Path $env:XDG_CONFIG_HOME 'cai'
+$xorcConfigDir = if (-not [string]::IsNullOrEmpty($env:XDG_CONFIG_HOME)) {
+    Join-Path $env:XDG_CONFIG_HOME 'xorc'
 } else {
-    Expand-Home '~/.config/cai'
+    Expand-Home '~/.config/xorc'
 }
 $agentsHomeItem = if (Test-Path -LiteralPath $agentsHome) { Get-Item -LiteralPath $agentsHome -Force } else { $null }
 $agentsHomeTarget = if ($agentsHomeItem) { Get-LinkTarget $agentsHomeItem } else { $null }
 $cloneAtAgentsHome = $agentsHomeItem -and (
     ((Resolve-Full $agentsHome) -ieq (Resolve-Full $repoRoot)) -or
     ($agentsHomeTarget -and ($agentsHomeTarget -ieq (Resolve-Full $repoRoot))))
-Write-Step 'CAI:'
-if ($NoCai) {
-    Write-Detail 'skipped (-NoCai).'
+Write-Step 'Xorc:'
+if ($NoXorc) {
+    Write-Detail 'skipped (-NoXorc).'
 } elseif ($cloneAtAgentsHome) {
-    Write-Detail "ok: CAI reads this clone at $agentsHome directly"
-} elseif (-not (Test-Path -LiteralPath $caiConfigDir -PathType Container)) {
-    Write-Detail "skip: CAI configuration not found at $caiConfigDir"
+    Write-Detail "ok: Xorc reads this clone at $agentsHome directly"
+} elseif (-not (Test-Path -LiteralPath $xorcConfigDir -PathType Container)) {
+    Write-Detail "skip: Xorc configuration not found at $xorcConfigDir"
 } elseif ($agentsHomeItem -and -not $agentsHomeItem.PSIsContainer) {
     Write-Detail "skip: $agentsHome exists and is not a directory"
 } else {

@@ -48,21 +48,21 @@ class ParserTest(unittest.TestCase):
                 front = (
                     "model:\n"
                     f"{step}claude: opus\n"
-                    f"{step}cai:\n"
+                    f"{step}xorc:\n"
                     f"{step * 2}- ollama-local/a:1b\n"
                     f"{step * 2}- ollama-local/b:2b\n"
                     f"{step}tier: strong\n"
                 )
                 expected = {
                     "claude": "opus",
-                    "cai": ["ollama-local/a:1b", "ollama-local/b:2b"],
+                    "xorc": ["ollama-local/a:1b", "ollama-local/b:2b"],
                     "tier": "strong",
                 }
                 self.assertEqual(self.parse(front)["model"], expected)
 
     def test_list_may_sit_at_its_keys_indent(self) -> None:
-        data = self.parse("model:\n  cai:\n  - a\n  - b\n")
-        self.assertEqual(data["model"], {"cai": ["a", "b"]})
+        data = self.parse("model:\n  xorc:\n  - a\n  - b\n")
+        self.assertEqual(data["model"], {"xorc": ["a", "b"]})
 
     def test_rejects_unsupported_syntax(self) -> None:
         unsupported = (
