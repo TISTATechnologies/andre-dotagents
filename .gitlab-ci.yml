@@ -1,10 +1,13 @@
 # Paired with .github/workflows/ci.yml - keep the two in sync when either
-# changes (checks run, container images, trigger scope). Every job calls the
-# justfile recipes that `just ci` runs, in an upstream image pinned to the
-# newest stable release line, as the GitHub jobs do. The PowerShell tests run
+# changes (checks run, container images, trigger scope). Jobs call justfile
+# recipes, in an upstream image pinned to the newest stable release line, as
+# the GitHub jobs do. The read-only PowerShell job is the exception to
+# `just ci`, which skips those tests when pwsh is missing. The PowerShell tests run
 # in the Linux PowerShell image instead of on Windows; Microsoft publishes no
 # image newer than 7.5, and the Windows-only junction test is covered by
-# GitHub.
+# GitHub. check:powershell requires pwsh and runs the tests from a writable
+# copy of a read-only source, the case just test-powershell-container covers.
+# A missing pwsh fails the job.
 
 workflow:
   rules:
@@ -21,7 +24,17 @@ check:skills:
     - apt-get update && apt-get install -y --no-install-recommends ca-certificates git jq just
     - pip install --root-user-action=ignore --no-cache-dir skills-ref==0.1.1
   script:
-    - just validate-skills validate-skills-spec validate-agents validate-doc-links test-python
+    # Agents are generated first, because nothing generated is committed.
+    - just generate-agents validate-skills validate-skills-spec validate-agents validate-doc-links test-python
+
+check:python-lint:
+  stage: check
+  image: python:3.14-slim-trixie
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends ca-certificates git just
+    - pip install --root-user-action=ignore --no-cache-dir -r .ci_scripts/requirements-lint.txt
+  script:
+    - just lint-python
 
 check:docs:
   stage: check
@@ -31,9 +44,8 @@ check:docs:
     - npm install -g markdownlint-cli2@0.23.3
     - just install-markdownlint
   script:
-    # lint-md applies fixes, so fail when it had anything to fix.
+    # lint-md only checks under CI, so anything fixable fails here.
     - just lint-md
-    - git diff --exit-code
 
 check:shell:
   stage: check
@@ -51,4 +63,4 @@ check:powershell:
     - apt-get update && apt-get install -y --no-install-recommends python3 just
   script:
     - pwsh --version
-    - just test-powershell
+    - just test-powershell-readonly

@@ -1,13 +1,17 @@
 # Paired with .gitlab-ci.yml - keep the two in sync when either changes
 # (checks run, container images, trigger scope).
 #
-# Every job calls the justfile recipes that `just ci` runs, so CI and the
-# local gate cannot drift apart. The Linux jobs run in the same upstream
-# images as their GitLab counterparts, pinned to the newest stable release
-# line (Python 3.14 and Node 24 LTS on Debian trixie, ShellCheck 0.11.0),
+# Jobs call justfile recipes so CI and the local gate stay on the same
+# checks. The read-only PowerShell job is the exception: `just ci` skips
+# those tests when pwsh is missing, and this job must not. The Linux jobs
+# run in the same upstream images as their GitLab counterparts, pinned to
+# the newest stable release line (Python 3.14 and Node 24 LTS on Debian
+# trixie, ShellCheck 0.11.0),
 # rather than the older tools the Ubuntu runner ships. The PowerShell
-# installer tests run on a Windows runner, which ships PowerShell 7 and is
-# the only place the junction-migration test can run. Bump the pins, the
+# installer tests run twice: from a read-only source in the Linux PowerShell
+# image, the same image and recipe GitLab uses, and on a Windows runner,
+# which ships PowerShell 7 and is the only place the junction-migration test
+# can run. Either job fails when pwsh is missing. Bump the pins, the
 # markdownlint-cli2 version, and the action majors together when a newer
 # stable release lands.
 
@@ -23,7 +27,7 @@ permissions:
 
 jobs:
   skills:
-    name: Validate skills, agents, and links; run Python tests
+    name: Generate agents; validate skills, agents, and links; run Python tests
     runs-on: ubuntu-latest
     container: python:3.14-slim-trixie
     steps:
@@ -32,10 +36,30 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      # The checkout belongs to the runner's user, not the container's root, so
+      # Git refuses it until it is marked safe; test-python lists tracked files.
+      - name: Mark the checkout safe for Git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Install the Agent Skills reference validator
         run: pip install --root-user-action=ignore --no-cache-dir skills-ref==0.1.1
+      # Agents are generated first, because nothing generated is committed.
       - name: Validate and test
-        run: just validate-skills validate-skills-spec validate-agents validate-doc-links test-python
+        run: just generate-agents validate-skills validate-skills-spec validate-agents validate-doc-links test-python
+
+  python-lint:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    container: python:3.14-slim-trixie
+    steps:
+      - name: Install just
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates git just
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install the Python lint tools
+        run: pip install --root-user-action=ignore --no-cache-dir -r .ci_scripts/requirements-lint.txt
+      - name: Lint Python
+        run: just lint-python
 
   docs:
     name: Lint Markdown
@@ -51,12 +75,9 @@ jobs:
         run: |
           npm install -g markdownlint-cli2@0.23.3
           just install-markdownlint
-      # lint-md applies fixes, so fail when it had anything to fix.
+      # lint-md only checks under CI, so anything fixable fails here.
       - name: Lint Markdown
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          just lint-md
-          git diff --exit-code
+        run: just lint-md
 
   shell:
     name: Lint shell scripts
@@ -70,6 +91,19 @@ jobs:
           persist-credentials: false
       - name: Run shellcheck
         run: shellcheck --version && just lint-sh
+
+  powershell-readonly:
+    name: PowerShell installer tests from a read-only source
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/powershell:7.5-ubuntu-24.04
+    steps:
+      - name: Install just, Python, and git
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates git python3 just
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Run PowerShell installer tests
+        run: pwsh --version && just test-powershell-readonly
 
   powershell:
     name: PowerShell installer tests
